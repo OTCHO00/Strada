@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+#root {
+
+  margin: 0;
+  padding: 0;
+
+}
+
+.mapboxgl-ctrl-bottom-left,
+.mapboxgl-ctrl-bottom-right {
+  display: none !important;
+}

@@ -18,6 +18,9 @@
 
 <body>
 
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.1.0/mapbox-gl-geocoder.min.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.1.0/mapbox-gl-geocoder.css" type="text/css">
+
     <div id="map"></div>
 
     <script>
@@ -25,15 +28,25 @@
     mapboxgl.accessToken = 'pk.eyJ1Ijoib3RjaG8iLCJhIjoiY21rbHgyczY3MGJmaTNkc2JscXE5NG1wMyJ9.z77Uh_KJ_BJ3WsKKmkrgMQ';
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/standard',
+        style: 'mapbox://styles/mapbox/standard'
     });
 
-    //map.addControl(new mapboxgl.NavigationControl());
-    //map.scrollZoom.disable();
+   map.addControl(
+        new MapboxGeocoder({
+            accessToken: mapboxgl.accessToken,
+            useBrowserFocus: true,
+            mapboxgl: mapboxgl
+        })
+    );
 
-    //map.on('style.load', () => {
-        //map.setFog({}); // Set the default atmosphere style
-    //});
+    map.on('style.load', function() {
+        map.on('click', function(e) {
+            var coordinates = e.lngLat;
+            const marker = new mapboxgl.Marker({color: "black"})
+            .setLngLat(coordinates)
+            .addTo(map);
+        });
+    });
 
     </script>
 
