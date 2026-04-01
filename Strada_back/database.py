@@ -1,17 +1,12 @@
+import os
 from sqlmodel import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
 
 
-POSTGRES_USER = "postgres"
-POSTGRES_PASSWORD = "fares1209"
-POSTGRES_HOST = "localhost"
-POSTGRES_PORT = "5432" 
-POSTGRES_DB = "BACKEND_TRAINING"
+def _get_database_url() -> str:
+    """
+    Uses DATABASE_URL if set, otherwise falls back to a local SQLite db.
+    """
+    return os.getenv("DATABASE_URL", "sqlite:///./strada.db")
 
-DATABASE_URL = (
-    f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
-    f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-)
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(_get_database_url())

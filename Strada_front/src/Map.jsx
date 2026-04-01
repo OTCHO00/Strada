@@ -1,10 +1,38 @@
 import { useRef, forwardRef, useImperativeHandle, useState } from 'react';
-import Map from 'react-map-gl/mapbox';
+import Map, { Layer, Source } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-const MapComponent = forwardRef(({ onPoiClick }, ref) => {
+const DAY_COLORS = [
+  '#3B82F6', // Bleu
+  '#10B981', // Vert  
+  '#F59E0B', // Orange
+  '#EF4444', // Rouge
+  '#8B5CF6', // Violet
+  '#EC4899', // Rose
+  '#14B8A6', // Cyan
+  '#F97316', // Orange foncé
+  '#6366F1', // Indigo
+];
+
+const routeLayer = {
+  id: 'route-line',
+  type: 'line',
+  paint: {
+    'line-color': '#4f46e5',
+    'line-width': 5,
+    'line-opacity': 0.85
+  }
+};
+
+const MapComponent = forwardRef(({ onPoiClick, routeGeojson, multiDayRoutes, mapStyle }, ref) => {
   const mapRef = useRef();
   const [isLoaded, setIsLoaded] = useState(false);
+
+  const getMapStyle = () => {
+    return mapStyle === 'night' 
+      ? 'mapbox://styles/mapbox/dark-v11'
+      : 'mapbox://styles/mapbox/streets-v12';
+  };
 
   useImperativeHandle(ref, () => ({
     flyTo: (options) => {
@@ -56,8 +84,13 @@ const MapComponent = forwardRef(({ onPoiClick }, ref) => {
 
         console.log('Données POI complètes:', poiData);
         
-        if (onPoiClick) {
-          onPoiClick(poiData);
+        // Vérifier que le POI a un nom avant de l'ajouter aux favoris
+        if (poiData.name && poiData.name.trim() !== '') {
+          if (onPoiClick) {
+            onPoiClick(poiData);
+          }
+        } else {
+          console.log('❌ POI ignoré: pas de nom valide');
         }
       } else {
         console.log('❌ Aucun lieu avec nom trouvé');
@@ -69,9 +102,9 @@ const MapComponent = forwardRef(({ onPoiClick }, ref) => {
   return (
     <Map
       ref={mapRef}
-      mapboxAccessToken="pk.eyJ1Ijoib3RjaG8iLCJhIjoiY21rbHgyczY3MGJmaTNkc2JscXE5NG1wMyJ9.z77Uh_KJ_BJ3WsKKmkrgMQ"
+      mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
       style={{position: "absolute", inset: 0}}
-      mapStyle="mapbox://styles/mapbox/streets-v12"
+      mapStyle={getMapStyle()}
       initialViewState={{
         longitude: 2.3522,
         latitude: 48.8566,
@@ -80,7 +113,42 @@ const MapComponent = forwardRef(({ onPoiClick }, ref) => {
       onLoad={handleMapLoad}
       onClick={handleMapClick}
       cursor="pointer"
-    />
+    >
+      {/* Route unique */}
+      {routeGeojson && !multiDayRoutes && (
+        <Source id="route" type="geojson" data={routeGeojson}>
+          <Layer 
+            id="route-line"
+            type="line"
+            paint={{
+              'line-color': '#746D69',
+              'line-width': 6,
+              'line-opacity': 0.9
+            }}
+          />
+        </Source>
+      )}
+      
+      {/* Multi-jours */}
+      {multiDayRoutes && Object.entries(multiDayRoutes).map(([day, routeData]) => {
+        const color = DAY_COLORS[(parseInt(day) - 1) % DAY_COLORS.length];
+        return routeData?.geojson && (
+          <Source key={day} id={`route-${day}`} type="geojson" data={routeData.geojson}>
+            <Layer 
+              id={`route-line-${day}`}
+              type="line"
+              paint={{
+                'line-color': color,
+                'line-width': 4,
+                'line-opacity': 0.8
+              }}
+            />
+          </Source>
+        );
+      })}
+      
+      {/* Debug overlay - RETIRÉ */}
+    </Map>
   );
 });
 

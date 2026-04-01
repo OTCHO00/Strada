@@ -4,59 +4,61 @@ function SelectItineraryModal({ poi, itineraries, onSelect, onClose }) {
   if (!poi) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm max-w-sm w-full overflow-hidden">
+
         {/* Header */}
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">Ajouter à un itinéraire</h2>
-              <p className="text-sm text-slate-600 mt-1">{poi.name}</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 text-slate-600" />
-            </button>
+        <div className="flex items-start justify-between px-4 pt-4 pb-3">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Ajouter à un voyage</p>
+            <p className="text-xs text-gray-400 mt-0.5 truncate">{poi.name}</p>
           </div>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors flex-shrink-0"
+          >
+            <X style={{ width: 14, height: 14 }} />
+          </button>
         </div>
 
-        {/* Liste des itinéraires */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
+        <div className="border-t border-gray-100 mx-4" />
+
+        {/* Liste */}
+        <div className="p-3 overflow-y-auto max-h-72">
           {itineraries.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-slate-600 mb-4">Vous n'avez pas encore d'itinéraire</p>
-              <p className="text-sm text-slate-500">Créez-en un dans la section Itinéraire</p>
+            <div className="text-center py-8 px-4">
+              <p className="text-sm font-medium text-gray-600">Aucun voyage créé</p>
+              <p className="text-xs text-gray-400 mt-1">Créez-en un depuis l'onglet Voyages</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-1.5">
               {itineraries.map(itinerary => (
                 <button
                   key={itinerary.id}
                   onClick={() => onSelect(itinerary)}
-                  className="w-full text-left p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all duration-200 group"
+                  className="w-full text-left flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-transparent hover:bg-gray-50 hover:border-gray-200 transition-all group"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                      {itinerary.nom}
-                    </h3>
-                    <span className="text-xs bg-slate-100 group-hover:bg-indigo-100 text-slate-700 group-hover:text-indigo-700 px-2 py-1 rounded-full font-semibold transition-colors">
-                      {itinerary.nb_jours} jours
-                    </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{itinerary.nom}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <MapPin style={{ width: 10, height: 10 }} className="text-gray-400 flex-shrink-0" />
+                      <span className="text-[11px] text-gray-400">
+                        {itinerary.pois?.length || 0} lieu{(itinerary.pois?.length || 0) > 1 ? 'x' : ''}
+                      </span>
+                      {itinerary.description && (
+                        <span className="text-[11px] text-gray-300">· {itinerary.description}</span>
+                      )}
+                    </div>
                   </div>
-                  {itinerary.description && (
-                    <p className="text-sm text-slate-600 mb-2">{itinerary.description}</p>
-                  )}
-                  <div className="flex items-center gap-1 text-xs text-slate-500">
-                    <MapPin className="w-3 h-3" />
-                    <span>{itinerary.pois?.length || 0} lieu{(itinerary.pois?.length || 0) > 1 ? 'x' : ''}</span>
-                  </div>
+                  <span className="text-[10px] font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex-shrink-0 group-hover:bg-gray-900 group-hover:text-white transition-colors">
+                    {itinerary.nb_jours}j
+                  </span>
                 </button>
               ))}
             </div>
           )}
         </div>
+
       </div>
     </div>
   );
