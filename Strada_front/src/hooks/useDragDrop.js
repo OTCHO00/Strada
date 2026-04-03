@@ -38,7 +38,7 @@ export function useDragDrop({ planPois, setPlanPois, selectedId }) {
   const updatePoiPosition = async (poiId, day, position) => {
     try {
       const response = await fetch(`http://localhost:8000/itineraire/${selectedId}/poi/${poiId}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ day, position })
       });

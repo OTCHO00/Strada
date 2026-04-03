@@ -1,6 +1,44 @@
+import { useState, useEffect } from 'react';
 import { X, MapPin } from 'lucide-react';
 
 function SelectItineraryModal({ poi, itineraries, onSelect, onClose }) {
+  const [plans, setPlans] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  // Charger les plans pour chaque itinéraire
+  useEffect(() => {
+    const loadPlans = async () => {
+      setLoading(true);
+      const newPlans = { ...plans }; // Conserver les plans déjà chargés
+      
+      // Ne charger que les plans pas encore chargés
+      const itinsToLoad = itineraries.filter(itin => !newPlans.hasOwnProperty(itin.id));
+      
+      for (const itin of itinsToLoad) {
+        try {
+          const res = await fetch(`http://localhost:8000/itineraire/${itin.id}/plan`);
+          if (res.ok) {
+            const data = await res.json();
+            newPlans[itin.id] = Array.isArray(data) ? data : [];
+          } else {
+            newPlans[itin.id] = [];
+          }
+        } catch (error) {
+          console.error(`Erreur chargement plan pour itinéraire ${itin.id}:`, error);
+          newPlans[itin.id] = [];
+        }
+      }
+      setPlans(newPlans);
+      setLoading(false);
+    };
+
+    if (itineraries.length > 0) {
+      loadPlans();
+    } else {
+      setLoading(false);
+    }
+  }, [itineraries]);
+
   if (!poi) return null;
 
   return (
@@ -42,9 +80,13 @@ function SelectItineraryModal({ poi, itineraries, onSelect, onClose }) {
                     <p className="text-sm font-medium text-gray-900 truncate">{itinerary.nom}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <MapPin style={{ width: 10, height: 10 }} className="text-gray-400 flex-shrink-0" />
-                      <span className="text-[11px] text-gray-400">
-                        {itinerary.pois?.length || 0} lieu{(itinerary.pois?.length || 0) > 1 ? 'x' : ''}
-                      </span>
+                      {loading ? (
+                        <span className="text-[11px] text-gray-300">Chargement...</span>
+                      ) : (
+                        <span className="text-[11px] text-gray-400">
+                          {plans[itinerary.id]?.length || 0} lieu{(plans[itinerary.id]?.length || 0) > 1 ? 'x' : ''}
+                        </span>
+                      )}
                       {itinerary.description && (
                         <span className="text-[11px] text-gray-300">· {itinerary.description}</span>
                       )}

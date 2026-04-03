@@ -86,7 +86,7 @@ function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed, onOpenSearch,
                 ? 'w-0 opacity-0 p-0 border-0 pointer-events-none'
                 : isOpen
                   ? 'w-56'
-                  : 'w-16'
+                  : 'w-16 max-sm:hidden'
             }`}
           >
           {/* Header */}

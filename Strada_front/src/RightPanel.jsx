@@ -12,10 +12,10 @@ const SearchIcon = () => (
 
 // ── Styles partagés ───────────────────────────────────────────────────
 const searchPanel =
-  'fixed top-4 right-4 bottom-4 w-80 z-50 bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col overflow-hidden';
+  'fixed inset-0 sm:top-4 sm:right-4 sm:bottom-4 sm:left-auto sm:w-80 z-50 bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col overflow-hidden';
 
 const otherPanels =
-  'fixed top-4 right-4 bottom-4 left-65 z-50 bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col overflow-hidden';
+  'fixed inset-0 sm:top-4 sm:right-4 sm:bottom-4 sm:left-65 z-50 bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col overflow-hidden';
 
 const panelHeader = 'flex items-center justify-between px-4 py-4 border-b border-gray-100 flex-shrink-0';
 
@@ -126,6 +126,45 @@ function SearchPanel({ isVisible, onClose, onPlaceSelect, mapboxToken }) {
 
 // ── FavoritesPanel ────────────────────────────────────────────────────
 function FavoritesPanel({ isVisible, onClose, favorites, setFavorites, onPlaceSelect }) {
+  const [deletingId, setDeletingId] = useState(null);
+
+  const handleDeleteFavorite = async (favId) => {
+    try {
+      setDeletingId(favId); // Indicateur de chargement
+      
+      // Appel API DELETE
+      const response = await fetch(`http://localhost:8000/favorites/${favId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur: ${response.status}`);
+      }
+      
+      // Suppression réussie → mettre à jour le state
+      setFavorites((prev) => prev.filter((f) => f.id !== favId));
+      
+      // Bonus : aussi mettre à jour localStorage si utilisé
+      try {
+        const localStorageFavorites = localStorage.getItem('favorites');
+        if (localStorageFavorites) {
+          const parsed = JSON.parse(localStorageFavorites);
+          const updated = parsed.filter((f) => f.id !== favId);
+          localStorage.setItem('favorites', JSON.stringify(updated));
+        }
+      } catch (localStorageError) {
+        // Ignorer les erreurs localStorage, ce n'est que du bonus
+        console.warn('Erreur localStorage:', localStorageError);
+      }
+      
+    } catch (error) {
+      console.error('Erreur suppression favori:', error);
+      alert('Erreur lors de la suppression du favori. Veuillez réessayer.');
+    } finally {
+      setDeletingId(null); // Fin du chargement
+    }
+  };
+
   if (!isVisible) return null;
 
   return (
@@ -157,10 +196,19 @@ function FavoritesPanel({ isVisible, onClose, favorites, setFavorites, onPlaceSe
                     </p>
                   </div>
                   <button
-                    onClick={() => setFavorites((p) => p.filter((f) => f.id !== fav.id))}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
+                    onClick={() => handleDeleteFavorite(fav.id)}
+                    disabled={deletingId === fav.id}
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors flex-shrink-0 ${
+                      deletingId === fav.id
+                        ? 'bg-red-50 text-red-500 cursor-not-allowed'
+                        : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                    }`}
                   >
-                    <Trash2 style={{ width: 13, height: 13 }} />
+                    {deletingId === fav.id ? (
+                      <div className="w-3 h-3 border border-red-500 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 style={{ width: 13, height: 13 }} />
+                    )}
                   </button>
                 </div>
                 <button
@@ -188,7 +236,7 @@ function FavoritesPanel({ isVisible, onClose, favorites, setFavorites, onPlaceSe
 // ── TripsPanel ────────────────────────────────────────────────────────
 function TripsPanel({ isVisible, onClose, itineraries, setItineraries }) {
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', nb_jours: '', description: '' });
+  const [form, setForm] = useState({ nom: '', nb_jours: '', description: '' });
   const [expandedId, setExpandedId] = useState(null);
   const [plans, setPlans] = useState({}); // Stocker les plans de chaque voyage
 
@@ -217,7 +265,7 @@ function TripsPanel({ isVisible, onClose, itineraries, setItineraries }) {
   }, [itineraries]);
 
   const handleCreate = async () => {
-    if (!form.name || !form.nb_jours) return;
+    if (!form.nom || !form.nb_jours) return;
     try {
       const res = await fetch('http://localhost:8000/itineraire', {
         method: 'POST',
@@ -226,7 +274,7 @@ function TripsPanel({ isVisible, onClose, itineraries, setItineraries }) {
       });
       const created = await res.json();
       setItineraries((p) => [...p, created]);
-      setForm({ name: '', nb_jours: '', description: '' });
+      setForm({ nom: '', nb_jours: '', description: '' });
       setShowForm(false);
     } catch (e) {
       console.error(e);
@@ -282,8 +330,8 @@ function TripsPanel({ isVisible, onClose, itineraries, setItineraries }) {
           <div className="space-y-3">
             <input
               type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              value={form.nom}
+              onChange={(e) => setForm({ ...form, nom: e.target.value })}
               placeholder="Nom du voyage"
               className={inputBase}
             />
@@ -341,7 +389,7 @@ function TripsPanel({ isVisible, onClose, itineraries, setItineraries }) {
                     {/* INFOS */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">
-                        {itin.nom}
+                        {itin.nom || itin.name || 'Voyage sans nom'}
                       </p>
                     </div>
                     
@@ -416,7 +464,7 @@ function TripsPanel({ isVisible, onClose, itineraries, setItineraries }) {
     </div>
   );
 }
-function OrganizePanel({ isVisible, onClose, itineraries, setItineraries }) {
+function OrganizePanel({ isVisible, onClose, itineraries, setItineraries, onViewRoutes }) {
   const [selectedId, setSelectedId] = useState(null);
   const [planPois, setPlanPois] = useState([]);
   const [calendar, setCalendar] = useState({});
@@ -483,7 +531,7 @@ function OrganizePanel({ isVisible, onClose, itineraries, setItineraries }) {
 
     try {
       await fetch(`http://localhost:8000/itineraire/${selectedId}/poi/${poi.id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ day, position: 0 }),
       });
@@ -501,7 +549,7 @@ function OrganizePanel({ isVisible, onClose, itineraries, setItineraries }) {
     setPlanPois(prev => [...prev, { ...poi, day: 0 }]);
     try {
       await fetch(`http://localhost:8000/itineraire/${selectedId}/poi/${poi.id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ day: 0, position: 0 }),
       });
@@ -547,7 +595,7 @@ function OrganizePanel({ isVisible, onClose, itineraries, setItineraries }) {
         >
           <option value="">Sélectionner un voyage…</option>
           {itineraries.map(i => (
-            <option key={i.id} value={i.id}>{i.nom}</option>
+            <option key={i.id} value={i.id}>{i.nom || i.name || 'Voyage sans nom'}</option>
           ))}
         </select>
         {selectedItin && (
@@ -714,27 +762,38 @@ function OrganizePanel({ isVisible, onClose, itineraries, setItineraries }) {
         </div>
       )}
 
-      {/* Footer */}
       {selectedItin && (
-        <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
-          <button className={btnPrimary}>
-            <Navigation style={{ width: 13, height: 13 }} />
-            Voir les trajets
-          </button>
-        </div>
-      )}
+      <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
+        <button
+          onClick={() => {
+            const allPois = [
+              ...planPois,
+              ...Object.values(calendar).flat()
+            ];
+            console.log('=== onViewRoutes ===');
+            console.log('allPois:', allPois);
+            console.log('POI avec day:', allPois.filter(p => p.day > 0));
+            onViewRoutes(selectedItin, allPois);
+          }}
+          className={btnPrimary}
+        >
+          <Navigation style={{ width: 13, height: 13 }} />
+          Voir les trajets
+        </button>
+      </div>
+    )}
     </div>
   );
 }
 
 // ── RightPanel ────────────────────────────────────────────────────────
-function RightPanel({ searchOpen, favoritesOpen, tripsOpen, organizeOpen, onCloseAll, onCloseSearch, favorites, setFavorites, itineraries, setItineraries, onPlaceSelect, mapboxToken }) {
+function RightPanel({ searchOpen, favoritesOpen, tripsOpen, organizeOpen, onCloseAll, onCloseSearch, favorites, setFavorites, itineraries, setItineraries, onPlaceSelect, mapboxToken, onViewRoutes }) {
   return (
     <>
       <SearchPanel isVisible={searchOpen} onClose={onCloseSearch} onPlaceSelect={onPlaceSelect} mapboxToken={mapboxToken} />
       <FavoritesPanel isVisible={favoritesOpen} onClose={onCloseAll} favorites={favorites} setFavorites={setFavorites} onPlaceSelect={onPlaceSelect} />
       <TripsPanel isVisible={tripsOpen} onClose={onCloseAll} itineraries={itineraries} setItineraries={setItineraries} />
-      <OrganizePanel isVisible={organizeOpen} onClose={onCloseAll} itineraries={itineraries} setItineraries={setItineraries} />
+      <OrganizePanel isVisible={organizeOpen} onClose={onCloseAll} itineraries={itineraries} setItineraries={setItineraries} onViewRoutes={onViewRoutes} />
     </>
   );
 }

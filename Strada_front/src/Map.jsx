@@ -1,153 +1,97 @@
 import { useRef, forwardRef, useImperativeHandle, useState } from 'react';
-import Map, { Layer, Source } from 'react-map-gl/mapbox';
+import Map, { Layer, Source, Marker } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { getDayColor } from './constants.js';
 
-const DAY_COLORS = [
-  '#3B82F6', // Bleu
-  '#10B981', // Vert  
-  '#F59E0B', // Orange
-  '#EF4444', // Rouge
-  '#8B5CF6', // Violet
-  '#EC4899', // Rose
-  '#14B8A6', // Cyan
-  '#F97316', // Orange foncé
-  '#6366F1', // Indigo
-];
-
-const routeLayer = {
-  id: 'route-line',
-  type: 'line',
-  paint: {
-    'line-color': '#4f46e5',
-    'line-width': 5,
-    'line-opacity': 0.85
-  }
-};
-
-const MapComponent = forwardRef(({ onPoiClick, routeGeojson, multiDayRoutes, mapStyle }, ref) => {
+const MapComponent = forwardRef(({ onPoiClick, routeGeojson, multiDayRoutes, markers }, ref) => {
   const mapRef = useRef();
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const getMapStyle = () => {
-    return mapStyle === 'night' 
-      ? 'mapbox://styles/mapbox/dark-v11'
-      : 'mapbox://styles/mapbox/streets-v12';
-  };
-
   useImperativeHandle(ref, () => ({
-    flyTo: (options) => {
-      mapRef.current?.flyTo(options);
-    }
+    flyTo: (options) => mapRef.current?.flyTo(options),
+    fitBounds: (bounds, options) => mapRef.current?.fitBounds(bounds, options),
   }));
 
-  const handleMapLoad = () => {
-    console.log('Carte chargée !');
-    setIsLoaded(true);
-  };
+  const handleMapLoad = () => setIsLoaded(true);
 
   const handleMapClick = (event) => {
-    if (!isLoaded) {
-      console.log('Carte pas encore chargée, attends un peu...');
-      return;
-    }
-
-    console.log('Click sur la carte!');
-    
+    if (!isLoaded) return;
     const map = mapRef.current?.getMap();
     if (!map) return;
-
     const features = map.queryRenderedFeatures(event.point);
-    
-    console.log('Features trouvés:', features.length);
-    
-    if (features.length > 0) {
-      // Log toutes les propriétés du premier feature
-      console.log('Properties du premier feature:', features[0].properties);
-      
-      // Chercher un feature avec un nom
-      const namedFeature = features.find(f => 
-        f.properties && (f.properties.name || f.properties.name_en)
-      );
-      
-      if (namedFeature) {
-        console.log('✅ Feature avec nom trouvé!', namedFeature.properties);
-        
-        const poiData = {
-          name: namedFeature.properties.name || namedFeature.properties.name_en,
-          category: namedFeature.properties.class || namedFeature.properties.type || namedFeature.properties.maki || 'Lieu',
-          coordinates: {
-            lng: event.lngLat.lng,
-            lat: event.lngLat.lat
-          },
-          properties: namedFeature.properties
-        };
-
-        console.log('Données POI complètes:', poiData);
-        
-        // Vérifier que le POI a un nom avant de l'ajouter aux favoris
-        if (poiData.name && poiData.name.trim() !== '') {
-          if (onPoiClick) {
-            onPoiClick(poiData);
-          }
-        } else {
-          console.log('❌ POI ignoré: pas de nom valide');
-        }
-      } else {
-        console.log('❌ Aucun lieu avec nom trouvé');
-        console.log('Propriétés disponibles:', features[0].properties);
-      }
-    }
+    if (!features.length) return;
+    const namedFeature = features.find(f =>
+      f.properties && (f.properties.name || f.properties.name_en)
+    );
+    if (!namedFeature) return;
+    const name = namedFeature.properties.name || namedFeature.properties.name_en;
+    if (!name?.trim()) return;
+    onPoiClick?.({
+      name,
+      category: namedFeature.properties.class || namedFeature.properties.type || namedFeature.properties.maki || 'Lieu',
+      coordinates: { lng: event.lngLat.lng, lat: event.lngLat.lat },
+      properties: namedFeature.properties,
+    });
   };
+
+  const hasMultiRoutes = Object.keys(multiDayRoutes || {}).length > 0;
 
   return (
     <Map
       ref={mapRef}
       mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
-      style={{position: "absolute", inset: 0}}
-      mapStyle={getMapStyle()}
-      initialViewState={{
-        longitude: 2.3522,
-        latitude: 48.8566,
-        zoom: 14
-      }}
+      style={{ position: 'absolute', inset: 0 }}
+      mapStyle="mapbox://styles/mapbox/streets-v12"
+      initialViewState={{ longitude: 2.3522, latitude: 48.8566, zoom: 14 }}
       onLoad={handleMapLoad}
       onClick={handleMapClick}
       cursor="pointer"
     >
-      {/* Route unique */}
-      {routeGeojson && !multiDayRoutes && (
-        <Source id="route" type="geojson" data={routeGeojson}>
-          <Layer 
-            id="route-line"
+      {/* Route jour unique */}
+      {routeGeojson && !hasMultiRoutes && (
+        <Source id="route-single" type="geojson" data={routeGeojson}>
+          <Layer
+            id="route-single-line"
             type="line"
-            paint={{
-              'line-color': '#746D69',
-              'line-width': 6,
-              'line-opacity': 0.9
-            }}
+            paint={{'line-color': routeGeojson.properties?.color || '#111111','line-width': 4,'line-opacity': 0.9}}
           />
         </Source>
       )}
-      
-      {/* Multi-jours */}
-      {multiDayRoutes && Object.entries(multiDayRoutes).map(([day, routeData]) => {
-        const color = DAY_COLORS[(parseInt(day) - 1) % DAY_COLORS.length];
-        return routeData?.geojson && (
-          <Source key={day} id={`route-${day}`} type="geojson" data={routeData.geojson}>
-            <Layer 
-              id={`route-line-${day}`}
+
+      {/* Routes multi-jours */}
+      {hasMultiRoutes && Object.entries(multiDayRoutes).map(([day, routeData]) => {
+        if (!routeData?.geojson) return null;
+        const color = getDayColor(parseInt(day));
+        return (
+          <Source key={`route-day-${day}`} id={`route-day-${day}`} type="geojson" data={routeData.geojson}>
+            <Layer
+              id={`route-day-line-${day}`}
               type="line"
-              paint={{
-                'line-color': color,
-                'line-width': 4,
-                'line-opacity': 0.8
-              }}
+              paint={{ 'line-color': color, 'line-width': 4, 'line-opacity': 0.85 }}
             />
           </Source>
         );
       })}
-      
-      {/* Debug overlay - RETIRÉ */}
+
+      {/* Marqueurs numérotés */}
+      {(markers || []).map((marker, idx) => {
+        const color = getDayColor(marker.day);
+        return (
+          <Marker
+            key={`marker-${marker.id}`}
+            longitude={marker.longitude}
+            latitude={marker.latitude}
+            anchor="bottom"
+          >
+            <div
+              style={{ backgroundColor: color }}
+              className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-white text-[10px] font-bold shadow-md cursor-default"
+            >
+              {idx + 1}
+            </div>
+          </Marker>
+        );
+      })}
     </Map>
   );
 });
