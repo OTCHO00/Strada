@@ -5,6 +5,7 @@ from sqlmodel import SQLModel, Session, select
 from shemas import FavoriteCreate, FavoriteRead, Itineraire, PlanFromFavorite, PoiCreate, PoiRead, PoiUpdate
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Depends, FastAPI, HTTPException
+from routes.generate import router as generate_router
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
@@ -26,6 +27,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(generate_router)
 
 @app.on_event("startup")
 def on_startup():
