@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { X, MapPin, Navigation, GripVertical } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, MapPin, GripVertical } from 'lucide-react';
 import { getDayColor } from './constants.js';
 
 // ── Utils ─────────────────────────────────────────────────────────────
@@ -36,6 +36,14 @@ const modeLabel = (mode) => {
   return 'Voiture';
 };
 
+// Shared card style
+const panelCard = {
+  background: 'rgba(18, 18, 22, 0.92)',
+  backdropFilter: 'blur(24px)',
+  WebkitBackdropFilter: 'blur(24px)',
+  boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
+};
+
 // ── RoutePanel ────────────────────────────────────────────────────────
 function RoutePanel({ itinerary, planPois, onDaysChange, onDayDetail, onClose }) {
   const [activeDays, setActiveDays] = useState([]);
@@ -55,24 +63,30 @@ function RoutePanel({ itinerary, planPois, onDaysChange, onDayDetail, onClose })
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden w-72">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+    <div
+      className="rounded-2xl overflow-hidden w-72 border border-[#262630]"
+      style={panelCard}
+    >
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#1a1a1e]">
         <div>
-          <p className="text-sm font-medium text-gray-900">{itinerary.nom}</p>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-sm font-medium text-[#f0f0f4]">{itinerary.nom}</p>
+          <p className="text-xs text-[#484854] mt-0.5">
             {activeDays.length === 0
               ? 'Sélectionnez des jours'
               : `${activeDays.length} jour${activeDays.length > 1 ? 's' : ''} affiché${activeDays.length > 1 ? 's' : ''}`}
           </p>
         </div>
-        <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+        <button
+          onClick={onClose}
+          className="w-6 h-6 rounded-lg flex items-center justify-center text-[#484854] hover:bg-[#1c1c20] hover:text-[#f0f0f4] transition-colors"
+        >
           <X style={{ width: 13, height: 13 }} />
         </button>
       </div>
 
       <div className="p-3">
         {daysToShow.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-3">Aucun lieu planifié</p>
+          <p className="text-xs text-[#484854] text-center py-3">Aucun lieu planifié</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {daysToShow.map((day) => {
@@ -83,8 +97,9 @@ function RoutePanel({ itinerary, planPois, onDaysChange, onDayDetail, onClose })
                   key={day}
                   onClick={() => toggleDay(day)}
                   style={isActive ? { backgroundColor: color, borderColor: color, color: '#fff' } : {}}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${isActive ? '' : 'border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-800'
-                    }`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${
+                    isActive ? '' : 'border-[#262630] text-[#484854] hover:border-[#38383f] hover:text-[#f0f0f4]'
+                  }`}
                 >
                   {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white/80 flex-shrink-0" />}
                   J{day}
@@ -100,7 +115,6 @@ function RoutePanel({ itinerary, planPois, onDaysChange, onDayDetail, onClose })
 
 // ── RouteDetailPanel ──────────────────────────────────────────────────
 function RouteDetailPanel({ isVisible, selectedDays, pois, routeDurations, onReorder, selectedMode, onModeChange }) {
-
   const [mounted, setMounted] = useState(false);
   const [orderedPois, setOrderedPois] = useState([]);
   const [draggedId, setDraggedId] = useState(null);
@@ -115,7 +129,6 @@ function RouteDetailPanel({ isVisible, selectedDays, pois, routeDurations, onReo
     }
   }, [isVisible]);
 
-  // Sync orderedPois quand pois ou selectedDays changent
   useEffect(() => {
     if (!pois || !selectedDays) return;
     const sorted = pois
@@ -136,8 +149,6 @@ function RouteDetailPanel({ isVisible, selectedDays, pois, routeDurations, onReo
     return acc + (routeDurations?.[day]?.[selectedMode]?.distance || 0);
   }, 0);
 
-
-  // ── Drag & drop handlers ──────────────────────────────────────
   const handleDragStart = (id) => setDraggedId(id);
 
   const handleDragOver = (e, id) => {
@@ -161,14 +172,10 @@ function RouteDetailPanel({ isVisible, selectedDays, pois, routeDurations, onReo
     const fromIdx = newOrder.findIndex(p => p.id === draggedId);
     const toIdx = newOrder.findIndex(p => p.id === targetId);
 
-    // Changer le jour si nécessaire
     newOrder[fromIdx] = { ...draggedPoi, day: targetPoi.day };
-
-    // Réinsérer à la bonne position
     const [moved] = newOrder.splice(fromIdx, 1);
     newOrder.splice(toIdx, 0, moved);
 
-    // Recalculer toutes les positions par jour
     const updatedOrder = newOrder.map(p => {
       const dayPois = newOrder.filter(x => x.day === p.day);
       return { ...p, position: dayPois.findIndex(x => x.id === p.id) };
@@ -186,23 +193,26 @@ function RouteDetailPanel({ isVisible, selectedDays, pois, routeDurations, onReo
   };
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-2xl overflow-hidden w-72 transition-all duration-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
-      }`}>
-
+    <div
+      className={`rounded-2xl overflow-hidden w-72 border border-[#262630] transition-all duration-300 ${
+        mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
+      }`}
+      style={panelCard}
+    >
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-100">
+      <div className="px-4 py-3 border-b border-[#1a1a1e]">
         <div className="flex items-center gap-2 mb-2">
           <div className="flex gap-1">
             {sortedDays.slice(0, 4).map(day => (
               <span key={day} className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getDayColor(day) }} />
             ))}
           </div>
-          <p className="text-xs font-medium text-gray-900">
+          <p className="text-xs font-medium text-[#f0f0f4]">
             {isMultiDay ? `Jours ${sortedDays.join(', ')}` : `Jour ${sortedDays[0]}`}
           </p>
         </div>
 
-        {/* Sélecteur de mode */}
+        {/* Mode selector */}
         <div className="flex gap-1 mb-2">
           {[
             { key: 'driving', src: '/car.png' },
@@ -213,84 +223,81 @@ function RouteDetailPanel({ isVisible, selectedDays, pois, routeDurations, onReo
             <button
               key={key}
               onClick={() => onModeChange(key)}
-              className={`flex-1 py-1 rounded-lg flex items-center justify-center transition-all ${selectedMode === key
-                  ? 'bg-gray-900'
-                  : 'bg-gray-100 hover:bg-gray-200'
-                }`}
+              className={`flex-1 py-1.5 rounded-lg flex items-center justify-center transition-all ${
+                selectedMode === key
+                  ? 'bg-white'
+                  : 'bg-[#1c1c20] hover:bg-[#242428]'
+              }`}
             >
               <img
                 src={src}
                 alt={key}
-                className={`w-5 h-5 object-contain transition-all ${selectedMode === key
-                    ? 'invert'
-                    : 'opacity-70'
-                  }`}
+                className={`w-5 h-5 object-contain transition-all ${
+                  selectedMode === key
+                    ? 'opacity-100'
+                    : 'invert opacity-50'
+                }`}
               />
             </button>
           ))}
         </div>
 
-        {/* Stats du mode sélectionné */}
+        {/* Stats */}
         <div className="flex items-center gap-3">
           {totalDuration > 0 && (
-            <span className="text-[10px] text-gray-400">⏱ {formatDuration(totalDuration)}</span>
+            <span className="text-[10px] text-[#484854]">⏱ {formatDuration(totalDuration)}</span>
           )}
           {totalDistance > 0 && (
-            <span className="text-[10px] text-gray-400">📍 {formatDistance(totalDistance)}</span>
+            <span className="text-[10px] text-[#484854]">📍 {formatDistance(totalDistance)}</span>
           )}
-          <span className="text-[10px] text-gray-400">{orderedPois.length} lieux</span>
+          <span className="text-[10px] text-[#484854]">{orderedPois.length} lieux</span>
         </div>
       </div>
 
-      {/* Liste des lieux avec drag & drop */}
+      {/* POI list */}
       <div className="overflow-y-auto max-h-64">
         {orderedPois.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-6">Aucun lieu prévu</p>
+          <p className="text-xs text-[#484854] text-center py-6">Aucun lieu prévu</p>
         ) : (
           <div className="p-2">
             {orderedPois.map((poi, idx) => {
               const color = getDayColor(poi.day);
               const showDayHeader = isMultiDay && (idx === 0 || orderedPois[idx - 1].day !== poi.day);
               const nextPoi = orderedPois[idx + 1];
-
-              // Connexion inter-jours : dernier POI d'un jour → premier du jour suivant
               const isLastOfDay = !nextPoi || nextPoi.day !== poi.day;
               const isInterDay = isLastOfDay && nextPoi && isMultiDay;
-
-              // Distance à vol d'oiseau pour les segments intra-jour
               const dist = nextPoi && nextPoi.day === poi.day
                 ? getDistance(poi, nextPoi)
                 : null;
 
               return (
                 <div key={poi.id}>
-                  {/* Séparateur de jour */}
                   {showDayHeader && (
                     <div className="flex items-center gap-2 px-1 py-1.5">
                       <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                      <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+                      <span className="text-[10px] font-medium text-[#484854] uppercase tracking-wider">
                         Jour {poi.day}
                       </span>
                       {routeDurations?.[poi.day]?.[selectedMode] && (
-                        <span className="text-[10px] text-gray-400">
+                        <span className="text-[10px] text-[#3c3c44]">
                           {formatDuration(routeDurations[poi.day][selectedMode].duration)}
                         </span>
                       )}
-                      <div className="flex-1 h-px bg-gray-100" />
+                      <div className="flex-1 h-px bg-[#1a1a1e]" />
                     </div>
                   )}
 
-                  {/* POI draggable */}
                   <div
                     draggable
                     onDragStart={() => handleDragStart(poi.id)}
                     onDragOver={(e) => handleDragOver(e, poi.id)}
                     onDrop={(e) => handleDrop(e, poi.id)}
                     onDragEnd={handleDragEnd}
-                    className={`flex items-center gap-2 px-2 py-2 rounded-xl transition-all cursor-grab active:cursor-grabbing select-none ${dragOverId === poi.id ? 'bg-gray-100 scale-[1.01]' : 'hover:bg-gray-50'
-                      } ${draggedId === poi.id ? 'opacity-40' : ''}`}
+                    className={`flex items-center gap-2 px-2 py-2 rounded-xl transition-all cursor-grab active:cursor-grabbing select-none ${
+                      dragOverId === poi.id ? 'bg-[#1c1c20] scale-[1.01]' : 'hover:bg-[#1a1a1e]'
+                    } ${draggedId === poi.id ? 'opacity-40' : ''}`}
                   >
-                    <GripVertical style={{ width: 11, height: 11, color: '#d1d5db', flexShrink: 0 }} />
+                    <GripVertical style={{ width: 11, height: 11, color: '#2a2a30', flexShrink: 0 }} />
                     <div
                       className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-semibold flex-shrink-0"
                       style={{ backgroundColor: color }}
@@ -298,31 +305,29 @@ function RouteDetailPanel({ isVisible, selectedDays, pois, routeDurations, onReo
                       {idx + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-900 truncate">{poi.nom}</p>
+                      <p className="text-xs font-medium text-[#f0f0f4] truncate">{poi.nom}</p>
                     </div>
-                    <MapPin style={{ width: 11, height: 11, color: '#d1d5db', flexShrink: 0 }} />
+                    <MapPin style={{ width: 11, height: 11, color: '#2a2a30', flexShrink: 0 }} />
                   </div>
 
-                  {/* Connecteur intra-jour */}
                   {dist !== null && (
                     <div className="flex items-center gap-1.5 pl-[28px] py-0.5">
-                      <div className="w-px h-3 bg-gray-200 flex-shrink-0" />
-                      <span className="text-[10px] text-gray-400 ml-1">
+                      <div className="w-px h-3 bg-[#262630] flex-shrink-0" />
+                      <span className="text-[10px] text-[#484854] ml-1">
                         {dist} km · {modeLabel(nextPoi?.travel_mode)}
                       </span>
                     </div>
                   )}
 
-                  {/* Connexion inter-jours — trait pointillé */}
                   {isInterDay && (
                     <div className="flex items-center gap-2 pl-[28px] py-1.5">
                       <div
                         className="w-px h-5 flex-shrink-0"
                         style={{
-                          background: 'repeating-linear-gradient(to bottom, #d1d5db 0px, #d1d5db 3px, transparent 3px, transparent 6px)'
+                          background: 'repeating-linear-gradient(to bottom, #262630 0px, #262630 3px, transparent 3px, transparent 6px)'
                         }}
                       />
-                      <span className="text-[10px] text-gray-300 italic ml-1">Jour suivant</span>
+                      <span className="text-[10px] text-[#3c3c44] italic ml-1">Jour suivant</span>
                     </div>
                   )}
                 </div>
@@ -350,17 +355,13 @@ function PanelsContainer({ isVisible, onClose, itinerary, planPois, onDaysChange
   const handleDayDetail = (days) => setSelectedDays(days);
 
   const handleReorder = async (updatedPois) => {
-    // 1. Mettre à jour localPois immédiatement
     const allUpdated = [
       ...localPois.filter(p => !updatedPois.find(u => u.id === p.id)),
       ...updatedPois
     ];
     setLocalPois(allUpdated);
-
-    // 2. Recalculer la carte avec le nouvel ordre
     onDaysChange(selectedDays, allUpdated);
 
-    // 3. Sync backend
     await Promise.all(updatedPois.map(async (poi) => {
       try {
         await fetch(`http://localhost:8000/itineraire/${itinerary.id}/poi/${poi.id}`, {
@@ -375,7 +376,7 @@ function PanelsContainer({ isVisible, onClose, itinerary, planPois, onDaysChange
   };
 
   return (
-    <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2 z-50">
+    <div className="fixed bottom-24 right-4 flex flex-col items-end gap-2 z-50">
       {selectedDays.length > 0 && (
         <RouteDetailPanel
           isVisible={true}

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Map from './Map.jsx';
-import Sidebar from './Sidebar.jsx';
+import BottomNav from './BottomNav.jsx';
 import RightPanel from './RightPanel.jsx';
 import PoiCard from './PoiCard.jsx';
 import SelectItineraryModal from './SelectItineraryModal.jsx';
@@ -10,13 +10,7 @@ import './App.css';
 
 function App() {
   // ── UI state ──────────────────────────────────────────────────
-  const [isOpen, setIsOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [favoritesOpen, setFavoritesOpen] = useState(false);
-  const [tripsOpen, setTripsOpen] = useState(false);
-  const [organizeOpen, setOrganizeOpen] = useState(false);
-  const [previousSidebarState, setPreviousSidebarState] = useState({ isOpen: false, isCollapsed: false });
+  const [activePanel, setActivePanel] = useState(null); // 'search' | 'favorites' | 'trips' | 'organize' | null
   const [toasts, setToasts] = useState([]);
 
   // ── Data state ────────────────────────────────────────────────
@@ -32,9 +26,16 @@ function App() {
   const [routePanelItinerary, setRoutePanelItinerary] = useState(null);
   const [routePanelPois, setRoutePanelPois] = useState([]);
   const [routeDurations, setRouteDurations] = useState({});
+  const [mapMarkers, setMapMarkers] = useState([]);
 
   const mapRef = useRef();
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+
+  // ── Derived panel booleans (for RightPanel API compat) ────────
+  const searchOpen   = activePanel === 'search';
+  const favoritesOpen = activePanel === 'favorites';
+  const tripsOpen    = activePanel === 'trips';
+  const organizeOpen = activePanel === 'organize';
 
   // ── Toast system ───────────────────────────────────────────────
   const addToast = (message, type = 'success') => {
@@ -44,7 +45,6 @@ function App() {
       setToasts(prev => prev.filter(toast => toast.id !== id));
     }, 3000);
   };
-  const [mapMarkers, setMapMarkers] = useState([]);
 
   // ── Fetch initial data ────────────────────────────────────────
   useEffect(() => {
@@ -130,61 +130,21 @@ function App() {
     }
   };
 
-  // ── Sidebar / panel handlers ──────────────────────────────────
-  const handleOpenSearch = () => {
-    setPreviousSidebarState({ isOpen, isCollapsed });
-    setIsOpen(false);
-    setSearchOpen(true);
-    setFavoritesOpen(false);
-    setTripsOpen(false);
-    setOrganizeOpen(false);
+  // ── Nav handlers ──────────────────────────────────────────────
+  const handleNavigate = (tab) => {
+    setActivePanel(prev => prev === tab ? null : tab);
   };
 
-  const handleCloseSearch = () => {
-    setSearchOpen(false);
-    setIsOpen(previousSidebarState.isOpen);
-    setIsCollapsed(previousSidebarState.isCollapsed);
-  };
+  const handleClosePanel = () => setActivePanel(null);
 
-  const handleOpenFavorites = () => {
-    setIsOpen(true);
-    setSearchOpen(false);
-    setFavoritesOpen(true);
-    setTripsOpen(false);
-    setOrganizeOpen(false);
-  };
-
-  const handleOpenTrips = () => {
-    setIsOpen(true);
-    setSearchOpen(false);
-    setFavoritesOpen(false);
-    setTripsOpen(true);
-    setOrganizeOpen(false);
-  };
-
-  const handleOpenOrganize = () => {
-    setIsOpen(true);
-    setSearchOpen(false);
-    setFavoritesOpen(false);
-    setTripsOpen(false);
-    setOrganizeOpen(true);
-  };
-
-  const handleCloseAllRight = () => {
-    setSearchOpen(false);
-    setFavoritesOpen(false);
-    setTripsOpen(false);
-    setOrganizeOpen(false);
-    setIsOpen(false);
-  };
+  const handleCloseSearch = () => setActivePanel(null);
 
   // ── Route handlers ────────────────────────────────────────────
   const handleViewRoutes = (itinerary, allPois) => {
     setRoutePanelItinerary(itinerary);
     setRoutePanelPois(allPois);
     setRoutePanelOpen(true);
-    setIsOpen(false);
-    setOrganizeOpen(false);
+    setActivePanel(null);
   };
 
   const handleDaysChange = async (activeDays, overridePois = null, mode = 'driving') => {
@@ -210,7 +170,6 @@ function App() {
 
       const coords = dayPois.map(p => `${p.longitude},${p.latitude}`).join(';');
 
-      // Distance à vol d'oiseau pour l'avion
       const totalDistanceKm = dayPois.reduce((acc, poi, i) => {
         if (i === 0) return acc;
         const prev = dayPois[i - 1];
@@ -224,7 +183,6 @@ function App() {
         return acc + R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       }, 0);
 
-      // Fetch driving, cycling, walking en parallèle
       const [drivingRes, cyclingRes, walkingRes] = await Promise.all([
         fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
         fetch(`https://api.mapbox.com/directions/v5/mapbox/cycling/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
@@ -245,8 +203,7 @@ function App() {
 
       const cruiseSpeed = 800;
       const extraTimeMinutes = 30;
-
-      const flightDurationSeconds = Math.round((totalDistanceKm / cruiseSpeed) * 3600 + (extraTimeMinutes * 60) );
+      const flightDurationSeconds = Math.round((totalDistanceKm / cruiseSpeed) * 3600 + (extraTimeMinutes * 60));
 
       newRoutes[day] = {
         geojson: { type: 'Feature', properties: { day }, geometry: driving.geometry },
@@ -268,8 +225,6 @@ function App() {
     });
     setRouteDurations(newDurations);
 
-    // Mettre à jour les routes
-    // Après
     const getGeojsonForMode = (day, dm) => {
       const route = newRoutes[day];
       if (!route) return null;
@@ -282,10 +237,7 @@ function App() {
         return {
           type: 'Feature',
           properties: { day, color },
-          geometry: {
-            type: 'LineString',
-            coordinates: dayPois.map(p => [p.longitude, p.latitude]),
-          },
+          geometry: { type: 'LineString', coordinates: dayPois.map(p => [p.longitude, p.latitude]) },
         };
       }
 
@@ -306,18 +258,15 @@ function App() {
       setMultiDayRoutes(routesForMode);
     }
 
-    // Calculer les marqueurs — tous les POI des jours actifs dans l'ordre
     const allActivePois = activeDays
       .flatMap(day =>
         poisToUse
           .filter(p => p.day === day)
           .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       );
-    console.log('Marqueurs ordre:', allActivePois.map(p => `${p.nom} (pos: ${p.position})`));
 
     setMapMarkers(allActivePois);
 
-    // Zoom automatique sur tous les POI actifs
     if (allActivePois.length > 0 && mapRef.current) {
       const lngs = allActivePois.map(p => p.longitude);
       const lats = allActivePois.map(p => p.latitude);
@@ -336,21 +285,10 @@ function App() {
     routePanelPoisRef.current = routePanelPois;
     reorderedPoisRef.current = null;
   }, [routePanelPois]);
+
   // ── Render ────────────────────────────────────────────────────
   return (
     <>
-      <Sidebar
-        isOpen={isOpen}
-        setIsOpen={setIsOpen}
-        isCollapsed={isCollapsed}
-        setIsCollapsed={setIsCollapsed}
-        onOpenSearch={handleOpenSearch}
-        onOpenFavorites={handleOpenFavorites}
-        onOpenTrips={handleOpenTrips}
-        onOpenOrganize={handleOpenOrganize}
-        searchOpen={searchOpen}
-      />
-
       <Map
         ref={mapRef}
         onPoiClick={handlePoiClick}
@@ -383,7 +321,7 @@ function App() {
         favoritesOpen={favoritesOpen}
         tripsOpen={tripsOpen}
         organizeOpen={organizeOpen}
-        onCloseAll={handleCloseAllRight}
+        onCloseAll={handleClosePanel}
         onCloseSearch={handleCloseSearch}
         favorites={favorites}
         setFavorites={setFavorites}
@@ -409,15 +347,18 @@ function App() {
         routeDurations={routeDurations}
       />
 
+      <BottomNav activeTab={activePanel} onNavigate={handleNavigate} />
+
       {/* Toasts */}
-      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2">
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 pointer-events-none">
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`px-4 py-2 rounded-xl text-xs shadow-sm border border-gray-200 transition-all duration-300 ${toast.type === 'success'
-                ? 'bg-black text-white'
-                : 'bg-red-100 text-red-800 border-red-200'
-              }`}
+            className={`px-4 py-2.5 rounded-xl text-xs font-medium shadow-xl border fade-up ${
+              toast.type === 'success'
+                ? 'bg-[#f0f0f4] text-[#0d0d0f] border-transparent'
+                : 'bg-red-950/80 text-red-300 border-red-800/40'
+            }`}
           >
             {toast.message}
           </div>
