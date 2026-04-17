@@ -1,23 +1,100 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Map from './Map.jsx';
 import Sidebar from './Sidebar.jsx';
 import RightPanel from './RightPanel.jsx';
 import PoiCard from './PoiCard.jsx';
 import SelectItineraryModal from './SelectItineraryModal.jsx';
 import PanelsContainer from './PanelsContainer.jsx';
+import BottomPlanner from './BottomPlanner.jsx';
 import { getDayColor } from './constants.js';
 import './App.css';
 
+const PALETTE = ['#5856d6','#34aadc','#30b0c7','#34c759','#ff9500','#af52de','#ff2d55','#5ac8fa','#ff6b35','#32ade6'];
+const getSavedTripColors = () => { try { return JSON.parse(localStorage.getItem('strada_trip_colors') || '{}'); } catch { return {}; } };
+const getTripColor = (itineraries, id) => {
+  const saved = getSavedTripColors();
+  if (saved[id]) return saved[id];
+  return PALETTE[itineraries.findIndex(i => i.id === id) % PALETTE.length] || PALETTE[0];
+};
+
+// Cache en mémoire pour les routes Mapbox Directions (session uniquement)
+const routeCache = new globalThis.Map();
+
+const DEFAULT_SETTINGS = {
+  mapStyle: 'streets-v12',
+  language: 'fr',
+  units: 'km',
+  defaultTransport: 'driving',
+  defaultZoom: 10,
+  sidebarColor: '#dfe2ef',
+  sidebarGrain: 0.06,
+  defaultCity: 'Paris',
+  defaultLng: 2.3522,
+  defaultLat: 48.8566,
+};
+
 function App() {
   // ── UI state ──────────────────────────────────────────────────
-  const [activePanel, setActivePanel] = useState(null); // 'search' | 'favorites' | 'trips' | 'organize' | null
+  const [activePanel, setActivePanel] = useState(null); // 'search' | 'favorites' | 'trips' | 'organize' | 'settings' | null
+  const [closingPanel, setClosingPanel] = useState(null);
   const [toasts, setToasts] = useState([]);
+
+  // ── Settings state ────────────────────────────────────────────
+  const [settings, setSettings] = useState(() => {
+    try {
+      const s = localStorage.getItem('strada_settings');
+      return s ? { ...DEFAULT_SETTINGS, ...JSON.parse(s) } : DEFAULT_SETTINGS;
+    } catch { return DEFAULT_SETTINGS; }
+  });
+
+  const updateSettings = (changes) => {
+    setSettings(prev => {
+      const next = { ...prev, ...changes };
+      localStorage.setItem('strada_settings', JSON.stringify(next));
+      return next;
+    });
+  };
 
   // ── Data state ────────────────────────────────────────────────
   const [itineraries, setItineraries] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [selectedPoi, setSelectedPoi] = useState(null);
   const [showItineraryModal, setShowItineraryModal] = useState(false);
+
+  // ── Planner state ─────────────────────────────────────────────
+  const [plannerOpen, setPlannerOpen]       = useState(false);
+  const [plannerClosing, setPlannerClosing] = useState(false);
+  const [plannerTrip, setPlannerTrip]       = useState(null);
+  const [plannerHeight, setPlannerHeight]   = useState(360);
+  const plannerTripRef = useRef(null);
+  useEffect(() => { plannerTripRef.current = plannerTrip; }, [plannerTrip]);
+
+  const handleOpenPlanner = async (itinerary) => {
+    setPlannerTrip(itinerary);
+    setPlannerOpen(true);
+    // Ouvre aussi le PanelsContainer avec les POIs du voyage
+    try {
+      const res = await fetch(`http://localhost:8000/itineraire/${itinerary.id}/plan`);
+      const pois = res.ok ? await res.json() : [];
+      setRoutePanelItinerary(itinerary);
+      setRoutePanelPois(pois);
+      setRoutePanelOpen(true);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleClosePlanner = () => {
+    setPlannerClosing(true);
+    setTimeout(() => {
+      setPlannerOpen(false);
+      setPlannerClosing(false);
+      setPlannerTrip(null);
+      setRoutePanelOpen(false);
+      setRouteGeojson(null);
+      setMultiDayRoutes({});
+      setMapMarkers([]);
+      setRouteDurations({});
+    }, 600);
+  };
 
   // ── Route state ───────────────────────────────────────────────
   const [routeGeojson, setRouteGeojson] = useState(null);
@@ -28,6 +105,9 @@ function App() {
   const [routeDurations, setRouteDurations] = useState({});
   const [mapMarkers, setMapMarkers] = useState([]);
 
+  // ── Trip markers (tous les voyages, toujours visibles) ───────
+  const [tripMarkers, setTripMarkers] = useState([]);
+
   const mapRef = useRef();
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -36,6 +116,7 @@ function App() {
   const favoritesOpen = activePanel === 'favorites';
   const tripsOpen     = activePanel === 'trips';
   const organizeOpen  = activePanel === 'organize';
+  const settingsOpen  = activePanel === 'settings';
 
   // ── Toast system ──────────────────────────────────────────────
   const addToast = (message, type = 'success') => {
@@ -44,11 +125,31 @@ function App() {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
   };
 
+  // ── Load all trip markers ─────────────────────────────────────
+  const loadAllTripMarkers = useCallback(async (itin) => {
+    const list = itin || itineraries;
+    if (!list.length) { setTripMarkers([]); return; }
+    try {
+      const results = await Promise.all(
+        list.map(async (trip) => {
+          const res = await fetch(`http://localhost:8000/itineraire/${trip.id}/plan`);
+          if (!res.ok) return [];
+          const pois = await res.json();
+          const color = getTripColor(list, trip.id);
+          return pois.map(p => ({ ...p, color }));
+        })
+      );
+      setTripMarkers(results.flat());
+    } catch (err) {
+      console.error('Erreur chargement markers:', err);
+    }
+  }, [itineraries]);
+
   // ── Fetch initial data ────────────────────────────────────────
   useEffect(() => {
     fetch('http://localhost:8000/itineraire')
       .then(res => res.ok ? res.json() : [])
-      .then(data => setItineraries(data))
+      .then(data => { setItineraries(data); loadAllTripMarkers(data); })
       .catch(err => console.error('Erreur itinéraires:', err));
   }, []);
 
@@ -65,6 +166,29 @@ function App() {
   };
 
   const handlePoiClick = (poiData) => setSelectedPoi(poiData);
+
+  // ── Trip markers handlers ─────────────────────────────────────
+  // Called by OrganizePanel when POIs are mutated (add/remove/reorder)
+  const handleTripPoisChange = () => loadAllTripMarkers();
+
+  // Rafraîchit markers + POIs du PanelsContainer quand le planner mute un POI
+  const handlePlannerPoisChange = useCallback(async () => {
+    loadAllTripMarkers();
+    const trip = plannerTripRef.current;
+    if (!trip) return;
+    try {
+      const res = await fetch(`http://localhost:8000/itineraire/${trip.id}/plan`);
+      if (res.ok) setRoutePanelPois(await res.json());
+    } catch (e) {}
+  }, [loadAllTripMarkers]);
+
+  const handleTripMarkerClick = (poi) => {
+    setSelectedPoi({
+      name: poi.nom,
+      category: poi.category || 'Lieu',
+      coordinates: { lat: poi.latitude, lng: poi.longitude },
+    });
+  };
 
   // ── POI handlers ──────────────────────────────────────────────
   const handleAddToTrip = () => setShowItineraryModal(true);
@@ -87,11 +211,22 @@ function App() {
       if (!res.ok) throw new Error('Erreur API favoris');
       const fav = await res.json();
       setFavorites(prev => [fav, ...prev]);
-      setSelectedPoi(null);
       addToast('Ajouté aux favoris', 'success');
     } catch (err) {
       console.error(err);
       addToast('Erreur lors de l\'ajout aux favoris', 'error');
+    }
+  };
+
+  const handleRemoveFromFavorites = async (favoriteId) => {
+    try {
+      const res = await fetch(`http://localhost:8000/favorites/${favoriteId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Erreur suppression favori');
+      setFavorites(prev => prev.filter(f => f.id !== favoriteId));
+      addToast('Retiré des favoris', 'success');
+    } catch (err) {
+      console.error(err);
+      addToast('Erreur lors de la suppression', 'error');
     }
   };
 
@@ -112,6 +247,7 @@ function App() {
       if (!res.ok) throw new Error(await res.text());
       const listRes = await fetch('http://localhost:8000/itineraire');
       if (listRes.ok) setItineraries(await listRes.json());
+      loadAllTripMarkers();
       setShowItineraryModal(false);
       setSelectedPoi(null);
       addToast('POI ajouté au voyage', 'success');
@@ -122,8 +258,17 @@ function App() {
   };
 
   // ── Nav / panel handlers ──────────────────────────────────────
-  const handleNavigate = (tab) => setActivePanel(prev => prev === tab ? null : tab);
-  const handleClosePanel = () => setActivePanel(null);
+  const closeWithAnimation = (panel) => {
+    setClosingPanel(panel);
+    setTimeout(() => { setActivePanel(null); setClosingPanel(null); }, 520);
+  };
+  const handleNavigate = (tab) => {
+    if (activePanel === tab) closeWithAnimation(tab);
+    else setActivePanel(tab);
+  };
+  const handleClosePanel = () => {
+    if (activePanel) closeWithAnimation(activePanel);
+  };
 
   // ── Route handlers ────────────────────────────────────────────
   const handleViewRoutes = (itinerary, allPois) => {
@@ -158,15 +303,29 @@ function App() {
         return acc + R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       }, 0);
 
-      const [drivingRes, cyclingRes, walkingRes] = await Promise.all([
-        fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
-        fetch(`https://api.mapbox.com/directions/v5/mapbox/cycling/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
-        fetch(`https://api.mapbox.com/directions/v5/mapbox/walking/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
-      ]);
-      const [drivingData, cyclingData, walkingData] = await Promise.all([drivingRes.json(), cyclingRes.json(), walkingRes.json()]);
-      const driving = drivingData?.routes?.[0];
-      const cycling = cyclingData?.routes?.[0];
-      const walking = walkingData?.routes?.[0];
+      // Cache par coordonnées — évite de refaire les appels si le trajet n'a pas changé
+      let routeResult = routeCache.get(coords);
+      if (!routeResult) {
+        try {
+          const [drivingRes, cyclingRes, walkingRes] = await Promise.all([
+            fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
+            fetch(`https://api.mapbox.com/directions/v5/mapbox/cycling/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
+            fetch(`https://api.mapbox.com/directions/v5/mapbox/walking/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
+          ]);
+          if (!drivingRes.ok || !cyclingRes.ok || !walkingRes.ok) return;
+          const [drivingData, cyclingData, walkingData] = await Promise.all([drivingRes.json(), cyclingRes.json(), walkingRes.json()]);
+          routeResult = {
+            driving: drivingData?.routes?.[0],
+            cycling: cyclingData?.routes?.[0],
+            walking: walkingData?.routes?.[0],
+          };
+          routeCache.set(coords, routeResult);
+        } catch (e) {
+          console.error('Erreur Directions API:', e);
+          return;
+        }
+      }
+      const { driving, cycling, walking } = routeResult;
       if (!driving?.geometry) return;
 
       const flightDurationSeconds = Math.round((totalDistanceKm / 800) * 3600 + 1800);
@@ -225,7 +384,7 @@ function App() {
   // ── Render ────────────────────────────────────────────────────
   return (
     <>
-      <Sidebar activeTab={activePanel} onNavigate={handleNavigate} />
+      <Sidebar activeTab={activePanel} onNavigate={handleNavigate} settings={settings} plannerOpen={plannerOpen || plannerClosing} />
 
       <Map
         ref={mapRef}
@@ -233,12 +392,18 @@ function App() {
         routeGeojson={Object.keys(multiDayRoutes).length === 0 ? routeGeojson : null}
         multiDayRoutes={multiDayRoutes}
         markers={mapMarkers}
+        tripMarkers={routePanelOpen ? [] : tripMarkers}
+        onTripMarkerClick={handleTripMarkerClick}
+        mapStyle={settings.mapStyle}
+        defaultZoom={settings.defaultZoom}
+        defaultLng={settings.defaultLng}
+        defaultLat={settings.defaultLat}
       />
 
       {/* Backdrop subtil quand un panel est ouvert */}
       {activePanel && (
         <div
-          className="fixed inset-0 z-[45] bg-black/5 backdrop-blur-[1px]"
+          className="fixed inset-0 z-[45] bg-black/5"
           onClick={handleClosePanel}
         />
       )}
@@ -249,7 +414,10 @@ function App() {
           onClose={() => setSelectedPoi(null)}
           onAddToTrip={handleAddToTrip}
           onAddToFavorites={handleAddToFavorites}
+          onRemoveFromFavorites={handleRemoveFromFavorites}
+          favorites={favorites}
           searchOpen={searchOpen}
+          settings={settings}
         />
       )}
 
@@ -263,10 +431,11 @@ function App() {
       )}
 
       <RightPanel
-        searchOpen={searchOpen}
-        favoritesOpen={favoritesOpen}
-        tripsOpen={tripsOpen}
-        organizeOpen={organizeOpen}
+        searchOpen={searchOpen && !plannerOpen}
+        favoritesOpen={favoritesOpen && !plannerOpen}
+        tripsOpen={tripsOpen && !plannerOpen}
+        organizeOpen={organizeOpen && !plannerOpen}
+        settingsOpen={settingsOpen && !plannerOpen}
         onCloseAll={handleClosePanel}
         onCloseSearch={handleClosePanel}
         favorites={favorites}
@@ -276,15 +445,36 @@ function App() {
         onPlaceSelect={handlePlaceSelect}
         mapboxToken={mapboxToken}
         onViewRoutes={handleViewRoutes}
+        onTripPoisChange={handleTripPoisChange}
+        onOpenPlanner={handleOpenPlanner}
+        settings={settings}
+        onSettingsChange={updateSettings}
+        closingPanel={closingPanel}
+      />
+
+      <BottomPlanner
+        isVisible={plannerOpen}
+        isClosing={plannerClosing}
+        onClose={handleClosePlanner}
+        itinerary={plannerTrip}
+        itineraries={itineraries}
+        onTripPoisChange={handlePlannerPoisChange}
+        height={plannerHeight}
+        settings={settings}
       />
 
       <PanelsContainer
         isVisible={routePanelOpen}
-        onClose={() => { setRoutePanelOpen(false); setRouteGeojson(null); setMultiDayRoutes({}); setMapMarkers([]); setRouteDurations({}); }}
+        isClosing={plannerClosing}
+        onClose={() => {}}
+        onHeightChange={setPlannerHeight}
         itinerary={routePanelItinerary}
         planPois={routePanelPois}
         onDaysChange={handleDaysChange}
         routeDurations={routeDurations}
+        defaultTransport={settings.defaultTransport}
+        units={settings.units}
+        settings={settings}
       />
 
       {/* Toasts */}
