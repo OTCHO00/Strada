@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, MapPin, Plus, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { makeGlassStyle, getTheme, GRAIN_SVG } from './theme.js';
 
@@ -111,6 +111,12 @@ function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavo
   const [photoLoading, setPhotoLoading] = useState(false);
   const [placeInfo, setPlaceInfo]   = useState(null);
 
+  // Drag
+  const [pos, setPos]       = useState(null); // null = position par défaut (coin haut-droit)
+  const [dragging, setDragging] = useState(false);
+  const dragData = useRef({ startMouseX: 0, startMouseY: 0, startPosX: 0, startPosY: 0 });
+  const cardRef  = useRef(null);
+
   const glassStyle = makeGlassStyle(settings.sidebarColor);
   const t          = getTheme(settings.sidebarColor);
   const grain      = settings.sidebarGrain ?? 0.06;
@@ -129,6 +135,34 @@ function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavo
       .then(({ photos: urls, info }) => { setPhotos(urls); setPlaceInfo(info); })
       .finally(() => setPhotoLoading(false));
   }, [poi?.name, poi?.coordinates?.lat, poi?.coordinates?.lng]);
+
+  // Reset position on new POI
+  useEffect(() => { setPos(null); }, [poi?.name]);
+
+  // Drag listeners
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e) => {
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const dx = clientX - dragData.current.startMouseX;
+      const dy = clientY - dragData.current.startMouseY;
+      const newX = Math.max(0, Math.min(window.innerWidth  - 288, dragData.current.startPosX + dx));
+      const newY = Math.max(0, Math.min(window.innerHeight - 60,  dragData.current.startPosY + dy));
+      setPos({ x: newX, y: newY });
+    };
+    const onUp = () => setDragging(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend',  onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend',  onUp);
+    };
+  }, [dragging]);
 
   if (!poi) return null;
 
@@ -151,12 +185,45 @@ function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavo
   const prev = (e) => { e.stopPropagation(); setPhotoIndex(i => (i - 1 + photos.length) % photos.length); };
   const next = (e) => { e.stopPropagation(); setPhotoIndex(i => (i + 1) % photos.length); };
 
+  const handleMouseDown = (e) => {
+    if (e.target.closest('button')) return;
+    e.preventDefault();
+    const rect = cardRef.current.getBoundingClientRect();
+    dragData.current = {
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startPosX: rect.left,
+      startPosY: rect.top,
+    };
+    setPos({ x: rect.left, y: rect.top });
+    setDragging(true);
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.target.closest('button')) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    dragData.current = {
+      startMouseX: e.touches[0].clientX,
+      startMouseY: e.touches[0].clientY,
+      startPosX: rect.left,
+      startPosY: rect.top,
+    };
+    setPos({ x: rect.left, y: rect.top });
+    setDragging(true);
+  };
+
   return (
     <div
-      className={`fixed top-4 w-72 z-[48] rounded-2xl overflow-hidden fade-up ${
-        searchOpen ? 'left-[232px]' : 'right-4'
-      }`}
-      style={{ ...glassStyle, transition: 'left 200ms cubic-bezier(0.16,1,0.3,1), right 200ms cubic-bezier(0.16,1,0.3,1)' }}
+      ref={cardRef}
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
+      className={`fixed w-72 z-[48] rounded-2xl overflow-hidden fade-up ${pos ? '' : 'top-4 right-4'}`}
+      style={{
+        ...glassStyle,
+        ...(pos ? { left: pos.x, top: pos.y } : {}),
+        cursor: dragging ? 'grabbing' : 'grab',
+        userSelect: 'none',
+      }}
     >
       {/* Grain */}
       {grain > 0 && (
