@@ -17,8 +17,39 @@ const getTripColor = (itineraries, id) => {
   return PALETTE[itineraries.findIndex(i => i.id === id) % PALETTE.length] || PALETTE[0];
 };
 
-// Cache en mémoire pour les routes Mapbox Directions (session uniquement)
+// Cache en mémoire pour les routes Directions (session uniquement)
 const routeCache = new globalThis.Map();
+
+// ── Google Directions via backend proxy (vélo + marche) ──────────────
+async function fetchGoogleRoute(mode, waypoints) {
+  if (waypoints.length < 2) return null;
+  try {
+    const res = await fetch('http://localhost:8000/directions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode, waypoints }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const points = decodePolyline(data.polyline);
+    return { geojson: { type: 'LineString', coordinates: points }, duration: data.duration, distance: data.distance };
+  } catch (e) { console.error(`[Directions] ${mode} error`, e); return null; }
+}
+
+function decodePolyline(encoded) {
+  const coords = [];
+  let index = 0, lat = 0, lng = 0;
+  while (index < encoded.length) {
+    let b, shift = 0, result = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lat += (result & 1) ? ~(result >> 1) : result >> 1;
+    shift = 0; result = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lng += (result & 1) ? ~(result >> 1) : result >> 1;
+    coords.push([lng / 1e5, lat / 1e5]);
+  }
+  return coords;
+}
 
 const DEFAULT_SETTINGS = {
   mapStyle: 'streets-v12',
@@ -307,17 +338,19 @@ function App() {
       let routeResult = routeCache.get(coords);
       if (!routeResult) {
         try {
-          const [drivingRes, cyclingRes, walkingRes] = await Promise.all([
+          const waypoints = dayPois.map(p => ({ lat: p.latitude, lng: p.longitude }));
+
+          const [drivingRes, cyclingRoute, walkingRoute] = await Promise.all([
             fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
-            fetch(`https://api.mapbox.com/directions/v5/mapbox/cycling/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
-            fetch(`https://api.mapbox.com/directions/v5/mapbox/walking/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
+            fetchGoogleRoute('cycling', waypoints),
+            fetchGoogleRoute('walking', waypoints),
           ]);
-          if (!drivingRes.ok || !cyclingRes.ok || !walkingRes.ok) return;
-          const [drivingData, cyclingData, walkingData] = await Promise.all([drivingRes.json(), cyclingRes.json(), walkingRes.json()]);
+          if (!drivingRes.ok) return;
+          const drivingData = await drivingRes.json();
           routeResult = {
             driving: drivingData?.routes?.[0],
-            cycling: cyclingData?.routes?.[0],
-            walking: walkingData?.routes?.[0],
+            cycling: cyclingRoute,
+            walking: walkingRoute,
           };
           routeCache.set(coords, routeResult);
         } catch (e) {
@@ -332,8 +365,8 @@ function App() {
       newRoutes[day] = {
         geojson: { type: 'Feature', properties: { day }, geometry: driving.geometry },
         driving: { duration: driving.duration, distance: driving.distance },
-        cycling: { duration: cycling?.duration ?? null, distance: cycling?.distance ?? null },
-        walking: { duration: walking?.duration ?? null, distance: walking?.distance ?? null },
+        cycling: cycling ? { duration: cycling.duration, distance: cycling.distance, geojson: { type: 'Feature', properties: { day }, geometry: cycling.geojson } } : null,
+        walking: walking ? { duration: walking.duration, distance: walking.distance, geojson: { type: 'Feature', properties: { day }, geometry: walking.geojson } } : null,
         flying: { duration: flightDurationSeconds, distance: Math.round(totalDistanceKm * 1000) },
       };
     }));
@@ -351,6 +384,11 @@ function App() {
       if (dm === 'flying') {
         const dayPois = poisToUse.filter(p => p.day === day).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
         return { type: 'Feature', properties: { day, color }, geometry: { type: 'LineString', coordinates: dayPois.map(p => [p.longitude, p.latitude]) } };
+      }
+      // Vélo/marche → GeoJSON Google si dispo, sinon fallback Mapbox (driving)
+      if ((dm === 'cycling' && route.cycling?.geojson) || (dm === 'walking' && route.walking?.geojson)) {
+        const googleGeojson = dm === 'cycling' ? route.cycling.geojson : route.walking.geojson;
+        return { ...googleGeojson, properties: { day, color } };
       }
       return { ...route.geojson, properties: { day, color } };
     };
