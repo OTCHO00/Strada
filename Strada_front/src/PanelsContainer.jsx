@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, MapPin, GripVertical } from 'lucide-react';
 import { getDayColor } from './constants.js';
 import { makeGlassStyle, getTheme, GRAIN_SVG } from './theme.js';
+import { useT } from './translations.js';
 
 const formatDuration = (s) => { if (!s) return null; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h > 0 ? `${h}h${m > 0 ? m + 'min' : ''}` : `${m} min`; };
 const formatDistance = (m, units = 'km') => {
@@ -24,6 +25,7 @@ const modeLabel = (m) => m === 'walking' ? 'À pied' : m === 'cycling' ? 'Vélo'
 function RoutePanel({ itinerary, planPois, onDaysChange, onDayDetail, onClose, settings = {} }) {
   const t = getTheme(settings.sidebarColor);
   const grain = settings.sidebarGrain ?? 0.06;
+  const tr = useT(settings.language);
   const [activeDays, setActiveDays] = useState([]);
   if (!itinerary) return null;
   const days = Array.from({ length: itinerary.nb_jours || 0 }, (_, i) => i + 1);
@@ -42,13 +44,13 @@ function RoutePanel({ itinerary, planPois, onDaysChange, onDayDetail, onClose, s
         <div>
           <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>{itinerary.nom}</p>
           <p className="text-xs mt-0.5" style={{ color: t.textTertiary }}>
-            {activeDays.length === 0 ? 'Sélectionnez des jours' : `${activeDays.length} jour${activeDays.length > 1 ? 's' : ''} affiché${activeDays.length > 1 ? 's' : ''}`}
+            {activeDays.length === 0 ? tr('selectDays') : `${activeDays.length} ${activeDays.length > 1 ? tr('days') : tr('day')}`}
           </p>
         </div>
       </div>
       <div className="p-3">
         {daysToShow.length === 0 ? (
-          <p className="text-xs text-[#aeaeb2] text-center py-3">Aucun lieu planifié</p>
+          <p className="text-xs text-[#aeaeb2] text-center py-3">{tr('noPlanned')}</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {daysToShow.map(day => {
@@ -59,7 +61,7 @@ function RoutePanel({ itinerary, planPois, onDaysChange, onDayDetail, onClose, s
                   style={isActive ? { backgroundColor: color, borderColor: color, color: '#fff', transition: 'background 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 140ms cubic-bezier(0.16, 1, 0.3, 1)' } : { transition: 'background 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 140ms cubic-bezier(0.16, 1, 0.3, 1)' }}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium active:scale-[0.94] ${isActive ? '' : 'border-[#e5e5ea] text-[#6c6c70] hover:border-[#d1d1d6] hover:text-[#1c1c1e]'}`}>
                   {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white/80 flex-shrink-0" />}
-                  J{day}
+                  {tr('dayShort')}{day}
                 </button>
               );
             })}
@@ -75,6 +77,7 @@ function RoutePanel({ itinerary, planPois, onDaysChange, onDayDetail, onClose, s
 function RouteDetailPanel({ isVisible, selectedDays, pois, routeDurations, onReorder, selectedMode, onModeChange, units = 'km', settings = {} }) {
   const t = getTheme(settings.sidebarColor);
   const grain = settings.sidebarGrain ?? 0.06;
+  const tr = useT(settings.language);
   const [mounted, setMounted] = useState(false);
   const [orderedPois, setOrderedPois] = useState([]);
   const [draggedId, setDraggedId] = useState(null);
@@ -123,7 +126,7 @@ function RouteDetailPanel({ isVisible, selectedDays, pois, routeDurations, onReo
             {sortedDays.slice(0, 4).map(day => <span key={day} className="w-2 h-2 rounded-full" style={{ backgroundColor: getDayColor(day) }} />)}
           </div>
           <p className="text-xs font-semibold text-[#1c1c1e]">
-            {isMultiDay ? `Jours ${sortedDays.join(', ')}` : `Jour ${sortedDays[0]}`}
+            {isMultiDay ? `${tr('days')} ${sortedDays.join(', ')}` : `${tr('day')} ${sortedDays[0]}`}
           </p>
         </div>
 
@@ -147,7 +150,7 @@ function RouteDetailPanel({ isVisible, selectedDays, pois, routeDurations, onReo
 
       <div className="overflow-y-auto max-h-64">
         {orderedPois.length === 0 ? (
-          <p className="text-xs text-[#aeaeb2] text-center py-6">Aucun lieu prévu</p>
+          <p className="text-xs text-[#aeaeb2] text-center py-6">{tr('noPOI')}</p>
         ) : (
           <div className="p-2">
             {orderedPois.map((poi, idx) => {
@@ -162,7 +165,7 @@ function RouteDetailPanel({ isVisible, selectedDays, pois, routeDurations, onReo
                   {showHeader && (
                     <div className="flex items-center gap-2 px-1 py-1.5">
                       <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
-                      <span className="text-[10px] font-semibold text-[#6c6c70] uppercase tracking-wider">Jour {poi.day}</span>
+                      <span className="text-[10px] font-semibold text-[#6c6c70] uppercase tracking-wider">{tr('day')} {poi.day}</span>
                       {routeDurations?.[poi.day]?.[selectedMode] && <span className="text-[10px] text-[#aeaeb2]">{formatDuration(routeDurations[poi.day][selectedMode].duration)}</span>}
                       <div className="flex-1 h-px bg-[#f0f0f4]" />
                     </div>
@@ -191,7 +194,7 @@ function RouteDetailPanel({ isVisible, selectedDays, pois, routeDurations, onReo
                   {isInterDay && (
                     <div className="flex items-center gap-2 pl-[28px] py-1.5">
                       <div className="w-px h-5" style={{ background: 'repeating-linear-gradient(to bottom, #e5e5ea 0px, #e5e5ea 3px, transparent 3px, transparent 6px)' }} />
-                      <span className="text-[10px] text-[#d1d1d6] italic ml-1">Jour suivant</span>
+                      <span className="text-[10px] text-[#d1d1d6] italic ml-1">{tr('nextDay')}</span>
                     </div>
                   )}
                 </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Star, MapPin, Plus, Trash2, ChevronDown, Calendar, Search, Pencil, Check } from 'lucide-react';
 import { makeGlassStyle, getTheme, GRAIN_SVG } from './theme.js';
+import { useT } from './translations.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────
 const PALETTE = ['#5856d6','#34aadc','#30b0c7','#34c759','#ff9500','#af52de','#ff2d55','#5ac8fa','#ff6b35','#32ade6'];
@@ -30,10 +31,10 @@ const PRESETS = [
 ];
 
 const GRAIN_LEVELS = [
-  { label: 'Aucun',  value: 0 },
-  { label: 'Subtil', value: 0.06 },
-  { label: 'Moyen',  value: 0.14 },
-  { label: 'Fort',   value: 0.26 },
+  { labelKey: 'grainNone',   value: 0 },
+  { labelKey: 'grainSubtle', value: 0.06 },
+  { labelKey: 'grainMedium', value: 0.14 },
+  { labelKey: 'grainStrong', value: 0.26 },
 ];
 
 const MAP_STYLES = [
@@ -100,6 +101,7 @@ function GlassPanel({ settings = {}, className, children, isClosing }) {
 // ── SearchPanel ───────────────────────────────────────────────────────
 function SearchPanel({ isVisible, isClosing, onClose, onPlaceSelect, mapboxToken, settings = {} }) {
   const t = getTheme(settings.sidebarColor);
+  const tr = useT(settings.language);
   const [searchValue, setSearchValue] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -139,8 +141,8 @@ function SearchPanel({ isVisible, isClosing, onClose, onPlaceSelect, mapboxToken
       {/* Header */}
       <div className={panelHeader} style={{ borderBottom: `1px solid ${t.divider}` }}>
         <div>
-          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>Recherche</p>
-          <p className="text-xs mt-0.5" style={{ color: t.textTertiary }}>Trouvez un lieu sur la carte</p>
+          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>{tr('search')}</p>
+          <p className="text-xs mt-0.5" style={{ color: t.textTertiary }}>{tr('searchSub')}</p>
         </div>
         <button onClick={onClose} className={closeBtn} style={{ background: t.closeBtnBg, color: t.closeBtnColor }}>
           <X style={{ width: 15, height: 15 }} />
@@ -156,7 +158,7 @@ function SearchPanel({ isVisible, isClosing, onClose, onPlaceSelect, mapboxToken
             value={searchValue}
             onChange={(e) => handleSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && suggestions[0] && handleSelect(suggestions[0])}
-            placeholder="Ville, monument, adresse…"
+            placeholder={tr('searchPlaceholder')}
             className="themed-input w-full pl-9 pr-9 py-2.5 rounded-xl text-sm focus:outline-none transition-all"
             style={{ background: t.inputBg, border: `1px solid ${t.inputBorder}` }}
             autoFocus
@@ -177,14 +179,14 @@ function SearchPanel({ isVisible, isClosing, onClose, onPlaceSelect, mapboxToken
               <Search style={{ width: 20, height: 20, color: t.textTertiary }} />
             </div>
             <div>
-              <p className="text-sm font-medium" style={{ color: t.textSecondary }}>Recherchez un lieu</p>
-              <p className="text-xs mt-1" style={{ color: t.textTertiary }}>Tapez pour commencer</p>
+              <p className="text-sm font-medium" style={{ color: t.textSecondary }}>{tr('searchEmptyTitle')}</p>
+              <p className="text-xs mt-1" style={{ color: t.textTertiary }}>{tr('searchEmptySub')}</p>
             </div>
           </div>
         )}
         {suggestions.length === 0 && !isLoading && searchValue.length > 2 && (
           <div className={emptyState}>
-            <p className="text-sm" style={{ color: t.textSecondary }}>Aucun résultat pour</p>
+            <p className="text-sm" style={{ color: t.textSecondary }}>{tr('searchNoResult')}</p>
             <p className="text-sm font-medium" style={{ color: t.textPrimary }}>"{searchValue}"</p>
           </div>
         )}
@@ -218,6 +220,7 @@ function SearchPanel({ isVisible, isClosing, onClose, onPlaceSelect, mapboxToken
 // ── FavoritesPanel ────────────────────────────────────────────────────
 function FavoritesPanel({ isVisible, isClosing, onClose, favorites, setFavorites, onPlaceSelect, settings = {} }) {
   const t = getTheme(settings.sidebarColor);
+  const tr = useT(settings.language);
   const [deletingId, setDeletingId] = useState(null);
 
   const handleDeleteFavorite = async (favId) => {
@@ -241,9 +244,9 @@ function FavoritesPanel({ isVisible, isClosing, onClose, favorites, setFavorites
       {/* Header */}
       <div className={panelHeader} style={{ borderBottom: `1px solid ${t.divider}` }}>
         <div>
-          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>Favoris</p>
+          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>{tr('favorites')}</p>
           <p className="text-xs mt-0.5" style={{ color: t.textTertiary }}>
-            {favorites.length === 0 ? 'Aucun favori' : `${favorites.length} lieu${favorites.length > 1 ? 'x' : ''} enregistré${favorites.length > 1 ? 's' : ''}`}
+            {favorites.length === 0 ? tr('favoritesNone') : `${favorites.length} ${favorites.length > 1 ? tr('favoris') : tr('favori')}`}
           </p>
         </div>
         <button onClick={onClose} className={closeBtn} style={{ background: t.closeBtnBg, color: t.closeBtnColor }}>
@@ -259,8 +262,8 @@ function FavoritesPanel({ isVisible, isClosing, onClose, favorites, setFavorites
               <Star style={{ width: 22, height: 22, color: t.textTertiary }} />
             </div>
             <div>
-              <p className="text-sm font-medium" style={{ color: t.textSecondary }}>Aucun favori</p>
-              <p className="text-xs mt-1" style={{ color: t.textTertiary }}>Cliquez sur un lieu puis "Favori"</p>
+              <p className="text-sm font-medium" style={{ color: t.textSecondary }}>{tr('favoritesNone')}</p>
+              <p className="text-xs mt-1" style={{ color: t.textTertiary }}>{tr('favoritesEmptySub')}</p>
             </div>
           </div>
         ) : (
@@ -310,7 +313,7 @@ function FavoritesPanel({ isVisible, isClosing, onClose, favorites, setFavorites
                     style={{ color: t.textSecondary }}
                   >
                     <MapPin style={{ width: 11, height: 11 }} />
-                    Voir sur la carte
+                    {tr('seeOnMap')}
                   </button>
                 </div>
               </div>
@@ -325,6 +328,7 @@ function FavoritesPanel({ isVisible, isClosing, onClose, favorites, setFavorites
 // ── TripsPanel ────────────────────────────────────────────────────────
 function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries, settings = {} }) {
   const t = getTheme(settings.sidebarColor);
+  const tr = useT(settings.language);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ nom: '', nb_jours: '', description: '', color: PALETTE[0] });
   const [expandedId, setExpandedId] = useState(null);
@@ -407,9 +411,9 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
       {/* Header */}
       <div className={panelHeader} style={{ borderBottom: `1px solid ${t.divider}` }}>
         <div>
-          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>Voyages</p>
+          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>{tr('trips')}</p>
           <p className="text-xs mt-0.5" style={{ color: t.textTertiary }}>
-            {itineraries.length === 0 ? 'Aucun voyage' : `${itineraries.length} voyage${itineraries.length > 1 ? 's' : ''}`}
+            {itineraries.length === 0 ? tr('tripsNone') : `${itineraries.length} ${itineraries.length > 1 ? tr('voyages') : tr('voyage')}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -419,7 +423,7 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
               className="btn-press flex items-center gap-1.5 px-3 py-1.5 bg-[#1c1c1e] text-white text-xs font-medium rounded-lg hover:bg-[#3a3a3c] transition-colors cursor-default focus:outline-none"
             >
               <Plus style={{ width: 12, height: 12 }} />
-              Nouveau
+              {tr('new')}
             </button>
           )}
           <button onClick={onClose} className={closeBtn} style={{ background: t.closeBtnBg, color: t.closeBtnColor }}>
@@ -431,22 +435,22 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
       {/* Creation form */}
       {showForm && (
         <div className="px-5 py-4 flex-shrink-0 space-y-3 fade-up" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: t.textSecondary }}>Nouveau voyage</p>
-          <input type="text" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Nom du voyage" className={inputBase} style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(0,0,0,0.07)' }} autoFocus />
-          <input type="number" value={form.nb_jours} onChange={(e) => setForm({ ...form, nb_jours: e.target.value })} placeholder="Nombre de jours" min="1" className={inputBase} style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(0,0,0,0.07)' }} />
-          <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description (optionnel)" className={inputBase} style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(0,0,0,0.07)' }} />
+          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: t.textSecondary }}>{tr('newTrip')}</p>
+          <input type="text" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder={tr('tripName')} className={inputBase} style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(0,0,0,0.07)' }} autoFocus />
+          <input type="number" value={form.nb_jours} onChange={(e) => setForm({ ...form, nb_jours: e.target.value })} placeholder={tr('tripDays')} min="1" className={inputBase} style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(0,0,0,0.07)' }} />
+          <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={tr('tripDesc')} className={inputBase} style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(0,0,0,0.07)' }} />
           <div className="flex items-center gap-3">
             <label className="w-8 h-8 rounded-full cursor-pointer relative overflow-hidden flex-shrink-0"
-              title="Choisir une couleur"
+              title={tr('chooseColor')}
               style={{ background: form.color, border: '2.5px solid rgba(0,0,0,0.12)', boxShadow: '0 1px 6px rgba(0,0,0,0.18)' }}>
               <input type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })}
                 className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
             </label>
-            <span className="text-[11px]" style={{ color: t.textTertiary }}>Couleur du voyage</span>
+            <span className="text-[11px]" style={{ color: t.textTertiary }}>{tr('tripColor')}</span>
           </div>
           <div className="flex gap-2 pt-1">
-            <button onClick={handleCreate} className="btn-press flex-1 py-2.5 bg-[#1c1c1e] text-white text-sm font-medium rounded-xl hover:bg-[#3a3a3c] transition-colors cursor-default focus:outline-none">Créer</button>
-            <button onClick={() => setShowForm(false)} className={btnSecondary} style={{ background: 'rgba(0,0,0,0.06)' }}>Annuler</button>
+            <button onClick={handleCreate} className="btn-press flex-1 py-2.5 bg-[#1c1c1e] text-white text-sm font-medium rounded-xl hover:bg-[#3a3a3c] transition-colors cursor-default focus:outline-none">{tr('create')}</button>
+            <button onClick={() => setShowForm(false)} className={btnSecondary} style={{ background: 'rgba(0,0,0,0.06)' }}>{tr('cancel')}</button>
           </div>
         </div>
       )}
@@ -459,8 +463,8 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
               <MapPin style={{ width: 22, height: 22, color: t.textTertiary }} />
             </div>
             <div>
-              <p className="text-sm font-medium" style={{ color: t.textSecondary }}>Aucun voyage</p>
-              <p className="text-xs mt-1" style={{ color: t.textTertiary }}>Créez votre premier itinéraire</p>
+              <p className="text-sm font-medium" style={{ color: t.textSecondary }}>{tr('tripsNone')}</p>
+              <p className="text-xs mt-1" style={{ color: t.textTertiary }}>{tr('tripsEmptySub')}</p>
             </div>
           </div>
         ) : (
@@ -480,25 +484,25 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
                     <div className="p-4 space-y-2.5 fade-up" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-2 mb-1">
                         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tripColor(itineraries, itin.id) }} />
-                        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: t.textSecondary }}>Modifier le voyage</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: t.textSecondary }}>{tr('editTrip')}</p>
                       </div>
                       <input
                         type="text" value={editForm.nom}
                         onChange={e => setEditForm({ ...editForm, nom: e.target.value })}
-                        placeholder="Nom du voyage" className={inputBase}
+                        placeholder={tr('tripName')} className={inputBase}
                         style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(0,0,0,0.07)' }}
                         autoFocus
                       />
                       <input
                         type="number" value={editForm.nb_jours}
                         onChange={e => setEditForm({ ...editForm, nb_jours: e.target.value })}
-                        placeholder="Nombre de jours" min="1" className={inputBase}
+                        placeholder={tr('tripDays')} min="1" className={inputBase}
                         style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(0,0,0,0.07)' }}
                       />
                       <input
                         type="text" value={editForm.description}
                         onChange={e => setEditForm({ ...editForm, description: e.target.value })}
-                        placeholder="Description (optionnel)" className={inputBase}
+                        placeholder={tr('tripDesc')} className={inputBase}
                         style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(0,0,0,0.07)' }}
                       />
                       <div className="flex gap-2 pt-0.5">
@@ -506,13 +510,13 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
                           onClick={() => handleEditSave(itin.id)}
                           className="btn-press flex-1 py-2 bg-[#1c1c1e] text-white text-xs font-medium rounded-xl hover:bg-[#3a3a3c] transition-colors cursor-default focus:outline-none flex items-center justify-center gap-1.5"
                         >
-                          <Check style={{ width: 12, height: 12 }} /> Enregistrer
+                          <Check style={{ width: 12, height: 12 }} /> {tr('save')}
                         </button>
                         <button
                           onClick={() => setEditingId(null)}
                           className={btnSecondary} style={{ background: 'rgba(0,0,0,0.06)' }}
                         >
-                          Annuler
+                          {tr('cancel')}
                         </button>
                       </div>
                     </div>
@@ -526,9 +530,9 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
                     <div className="w-2 self-stretch rounded-full flex-shrink-0" style={{ backgroundColor: tripColor(itineraries, itin.id) }} />
 
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate" style={{ color: t.textPrimary }}>{itin.nom || 'Voyage sans nom'}</p>
+                      <p className="text-sm font-semibold truncate" style={{ color: t.textPrimary }}>{itin.nom || tr('unnamedTrip')}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[11px]" style={{ color: t.textTertiary }}>{pois.length} lieu{pois.length > 1 ? 'x' : ''}</span>
+                        <span className="text-[11px]" style={{ color: t.textTertiary }}>{pois.length} {pois.length > 1 ? tr('places') : tr('place')}</span>
                         {itin.description && <span className="text-[11px] truncate" style={{ color: t.textTertiary }}>· {itin.description}</span>}
                       </div>
                     </div>
@@ -560,7 +564,7 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
                   {isExpanded && (
                     <div className="px-4 py-3 space-y-1.5 fade-up" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
                       {pois.length === 0 ? (
-                        <p className="text-xs py-2 text-center" style={{ color: t.textTertiary }}>Aucun lieu ajouté</p>
+                        <p className="text-xs py-2 text-center" style={{ color: t.textTertiary }}>{tr('noPlaces')}</p>
                       ) : pois.map((poi, idx) => (
                         <div key={poi.id} className="group flex items-center gap-2.5 py-2 px-2 rounded-xl" onMouseEnter={e => e.currentTarget.style.background= t.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'} onMouseLeave={e => e.currentTarget.style.background=''}>
                           <span className="w-5 h-5 rounded-full text-[10px] font-semibold flex items-center justify-center flex-shrink-0" style={{ background: t.inputBg, color: t.textSecondary }}>
@@ -598,6 +602,7 @@ const loadOrgData = () => {
 
 function OrganizePanel({ isVisible, isClosing, onClose, itineraries, onOpenPlanner, settings = {} }) {
   const t = getTheme(settings.sidebarColor);
+  const tr = useT(settings.language);
   const [orgData, setOrgData] = useState(loadOrgData);
   const [showCatForm, setShowCatForm] = useState(false);
   const [newCatName, setNewCatName] = useState('');
@@ -683,9 +688,9 @@ function OrganizePanel({ isVisible, isClosing, onClose, itineraries, onOpenPlann
       {/* Header */}
       <div className={panelHeader} style={{ borderBottom: `1px solid ${t.divider}` }}>
         <div>
-          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>Organisation</p>
+          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>{tr('organize')}</p>
           <p className="text-xs mt-0.5" style={{ color: t.textTertiary }}>
-            {itineraries.length === 0 ? 'Aucun voyage' : `${itineraries.length} voyage${itineraries.length > 1 ? 's' : ''}`}
+            {itineraries.length === 0 ? tr('tripsNone') : `${itineraries.length} ${itineraries.length > 1 ? tr('voyages') : tr('voyage')}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -695,7 +700,7 @@ function OrganizePanel({ isVisible, isClosing, onClose, itineraries, onOpenPlann
             style={{ background: t.inputBg, color: t.textSecondary, transition: 'transform 160ms cubic-bezier(0.16,1,0.3,1), opacity 160ms ease-out' }}
           >
             <Plus style={{ width: 11, height: 11 }} />
-            Catégorie
+            {tr('category')}
           </button>
           <button onClick={onClose} className={closeBtn} style={{ background: t.closeBtnBg, color: t.closeBtnColor }}>
             <X style={{ width: 15, height: 15 }} />
@@ -711,11 +716,11 @@ function OrganizePanel({ isVisible, isClosing, onClose, itineraries, onOpenPlann
             value={newCatName}
             onChange={e => setNewCatName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleCreateCat(); if (e.key === 'Escape') setShowCatForm(false); }}
-            placeholder="Nom de la catégorie…"
+            placeholder={tr('categoryName')}
             className={inputBase}
             style={{ flex: 1 }}
           />
-          <button onClick={handleCreateCat} className="btn-press px-3 py-2 text-white text-xs font-medium rounded-xl cursor-default focus:outline-none" style={{ background: '#1c1c1e', flexShrink: 0 }}>Créer</button>
+          <button onClick={handleCreateCat} className="btn-press px-3 py-2 text-white text-xs font-medium rounded-xl cursor-default focus:outline-none" style={{ background: '#1c1c1e', flexShrink: 0 }}>{tr('create')}</button>
         </div>
       )}
 
@@ -727,8 +732,8 @@ function OrganizePanel({ isVisible, isClosing, onClose, itineraries, onOpenPlann
               <Calendar style={{ width: 22, height: 22, color: t.textTertiary }} />
             </div>
             <div>
-              <p className="text-sm font-medium" style={{ color: t.textSecondary }}>Aucun voyage</p>
-              <p className="text-xs mt-1" style={{ color: t.textTertiary }}>Créez des voyages depuis l'onglet Voyages</p>
+              <p className="text-sm font-medium" style={{ color: t.textSecondary }}>{tr('tripsNone')}</p>
+              <p className="text-xs mt-1" style={{ color: t.textTertiary }}>{tr('organizeEmptySub')}</p>
             </div>
           </div>
         ) : (
@@ -802,7 +807,7 @@ function OrganizePanel({ isVisible, isClosing, onClose, itineraries, onOpenPlann
 
                           {/* Info */}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate" style={{ color: t.textPrimary }}>{trip.nom || 'Voyage sans nom'}</p>
+                            <p className="text-sm font-semibold truncate" style={{ color: t.textPrimary }}>{trip.nom || tr('unnamedTrip')}</p>
                             <div className="flex items-center gap-1.5 mt-0.5 relative">
                               <span className="text-[11px]" style={{ color: t.textTertiary }}>{trip.nb_jours}j</span>
                               {/* Category tag */}
@@ -819,7 +824,7 @@ function OrganizePanel({ isVisible, isClosing, onClose, itineraries, onOpenPlann
                                   className="absolute left-0 top-full mt-1 rounded-xl overflow-hidden z-20 fade-up"
                                   style={{ background: t.dark ? 'rgba(30,30,46,0.98)' : 'rgba(248,248,252,0.98)', backdropFilter: 'blur(20px)', border: `1px solid ${t.divider}`, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 150 }}
                                 >
-                                  {[{ id: null, name: 'Sans catégorie' }, ...orgData.categories].map(c => (
+                                  {[{ id: null, name: tr('noCategory') }, ...orgData.categories].map(c => (
                                     <button
                                       key={c.id || 'none'}
                                       onClick={() => handleAssignCat(trip.id, c.id)}
@@ -842,7 +847,7 @@ function OrganizePanel({ isVisible, isClosing, onClose, itineraries, onOpenPlann
                             className="btn-press flex items-center px-3.5 py-2 text-white text-xs font-bold rounded-xl cursor-default focus:outline-none flex-shrink-0"
                             style={{ background: tc, boxShadow: `0 2px 10px ${tc}60`, transition: 'transform 160ms cubic-bezier(0.16,1,0.3,1), opacity 160ms ease-out' }}
                           >
-                            GO !
+                            {tr('go')}
                           </button>
                         </div>
                       </div>
@@ -853,7 +858,7 @@ function OrganizePanel({ isVisible, isClosing, onClose, itineraries, onOpenPlann
                 {/* Empty category drop hint */}
                 {cat && trips.length === 0 && (
                   <div className="py-3 rounded-xl text-center" style={{ border: `1px dashed ${t.divider}` }}>
-                    <p className="text-[11px]" style={{ color: t.textTertiary }}>Glissez un voyage ici</p>
+                    <p className="text-[11px]" style={{ color: t.textTertiary }}>{tr('dropHere')}</p>
                   </div>
                 )}
               </div>
@@ -902,6 +907,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
 
   const { sidebarColor: color = '#dfe2ef', sidebarGrain: grain = 0.06, mapStyle = 'streets-v12', defaultZoom = 10, language = 'fr', units = 'km', defaultTransport = 'driving', defaultCity = 'Paris' } = settings;
   const t = getTheme(color);
+  const tr = useT(language);
 
   const sectionHeader = 'text-[10px] font-semibold uppercase tracking-wider mb-3';
   const divider = { borderBottom: `1px solid ${t.divider}`, marginBottom: 0 };
@@ -924,8 +930,8 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
       {/* Header */}
       <div className={panelHeader} style={{ borderBottom: `1px solid ${t.divider}` }}>
         <div>
-          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>Paramètres</p>
-          <p className="text-xs mt-0.5" style={{ color: t.textTertiary }}>Personnalisez votre expérience</p>
+          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>{tr('settings')}</p>
+          <p className="text-xs mt-0.5" style={{ color: t.textTertiary }}>{tr('settingsSub')}</p>
         </div>
         <button onClick={onClose} className={closeBtn} style={{ background: t.closeBtnBg, color: t.closeBtnColor }}>
           <X style={{ width: 15, height: 15 }} />
@@ -936,12 +942,12 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
 
         {/* ── Section 1: GÉNÉRAL ── */}
         <div className="px-5 py-4" style={divider}>
-          <p className={sectionHeader} style={{ color: t.textTertiary }}>Général</p>
+          <p className={sectionHeader} style={{ color: t.textTertiary }}>{tr('general')}</p>
 
           {/* Default city */}
           <div className="mb-3">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[13px] font-medium" style={{ color: t.textPrimary }}>Ville de départ</span>
+              <span className="text-[13px] font-medium" style={{ color: t.textPrimary }}>{tr('defaultCity')}</span>
               <span className="text-[11px] truncate max-w-[130px]" style={{ color: t.textTertiary }}>{defaultCity}</span>
             </div>
             <div className="relative">
@@ -949,7 +955,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
                 type="text"
                 value={cityInput}
                 onChange={e => searchCity(e.target.value)}
-                placeholder="Chercher une ville…"
+                placeholder={tr('searchCity')}
                 className="w-full px-3 py-2 rounded-xl text-[12px] focus:outline-none transition-all"
                 style={{ background: t.inputBg, border: `1px solid ${t.inputBorder}`, color: t.textPrimary }}
               />
@@ -977,7 +983,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
 
           {/* Language */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[13px] font-medium" style={{ color: t.textPrimary }}>Langue</span>
+            <span className="text-[13px] font-medium" style={{ color: t.textPrimary }}>{tr('language')}</span>
             <div className="flex gap-1">
               {['fr', 'en'].map(lang => (
                 <button key={lang} onClick={() => onSettingsChange({ language: lang })}
@@ -991,7 +997,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
 
           {/* Units */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[13px] font-medium" style={{ color: t.textPrimary }}>Unités</span>
+            <span className="text-[13px] font-medium" style={{ color: t.textPrimary }}>{tr('units')}</span>
             <div className="flex gap-1">
               {['km', 'miles'].map(u => (
                 <button key={u} onClick={() => onSettingsChange({ units: u })}
@@ -1005,7 +1011,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
 
           {/* Default transport */}
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium" style={{ color: t.textPrimary }}>Transport</span>
+            <span className="text-[13px] font-medium" style={{ color: t.textPrimary }}>{tr('transport')}</span>
             <div className="flex gap-1 rounded-xl p-1" style={{ background: t.inputBg }}>
               {[{ key: 'driving', src: '/car.png' }, { key: 'cycling', src: '/bike.png' }, { key: 'walking', src: '/man-walking.png' }, { key: 'flying', src: '/airplane.png' }].map(({ key, src }) => (
                 <button key={key} onClick={() => onSettingsChange({ defaultTransport: key })}
@@ -1022,7 +1028,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
 
         {/* ── Section 2: APPARENCE ── */}
         <div className="px-5 py-4" style={divider}>
-          <p className={sectionHeader} style={{ color: t.textTertiary }}>Apparence</p>
+          <p className={sectionHeader} style={{ color: t.textTertiary }}>{tr('appearance')}</p>
 
           {/* Color presets grid */}
           <div className="grid grid-cols-6 gap-2 mb-3">
@@ -1065,7 +1071,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
           </div>
 
           {/* Grain buttons */}
-          <p className={sectionHeader} style={{ color: t.textTertiary, marginTop: 12 }}>Grain</p>
+          <p className={sectionHeader} style={{ color: t.textTertiary, marginTop: 12 }}>{tr('grain')}</p>
           <div className="flex gap-2 mb-3">
             {GRAIN_LEVELS.map(level => (
               <button
@@ -1078,7 +1084,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
                   background: t.inputBg, color: t.textSecondary,
                 }}
               >
-                {level.label}
+                {tr(level.labelKey)}
               </button>
             ))}
           </div>
@@ -1089,7 +1095,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
             className="text-[11px] transition-colors cursor-default focus:outline-none"
             style={{ color: t.textTertiary }}
           >
-            Réinitialiser l'apparence
+            {tr('resetAppearance')}
           </button>
         </div>
 
@@ -1098,7 +1104,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
 
         {/* ── Section 3: CARTE ── */}
         <div className="px-5 py-4">
-          <p className={sectionHeader} style={{ color: t.textTertiary }}>Carte</p>
+          <p className={sectionHeader} style={{ color: t.textTertiary }}>{tr('map')}</p>
 
           {/* Map style 2x2 grid */}
           <div className="grid grid-cols-2 gap-2 mb-4">
@@ -1132,7 +1138,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
           </div>
 
           {/* Zoom range */}
-          <p className={sectionHeader} style={{ color: t.textTertiary }}>Zoom de départ</p>
+          <p className={sectionHeader} style={{ color: t.textTertiary }}>{tr('startZoom')}</p>
           <div className="flex items-center gap-3">
             <input
               type="range" min="3" max="18" step="1" value={defaultZoom}

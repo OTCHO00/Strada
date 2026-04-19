@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, MapPin, Plus, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { makeGlassStyle, getTheme, GRAIN_SVG } from './theme.js';
+import { useT } from './translations.js';
 
 const formatCategory = (cat) => !cat ? '' : cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
@@ -23,7 +24,7 @@ const saveCache = () => {
 };
 
 const PRICE_MAP = {
-  PRICE_LEVEL_FREE: 'Gratuit',
+  PRICE_LEVEL_FREE: '__FREE__',
   PRICE_LEVEL_INEXPENSIVE: '€',
   PRICE_LEVEL_MODERATE: '€€',
   PRICE_LEVEL_EXPENSIVE: '€€€',
@@ -120,6 +121,7 @@ function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavo
   const glassStyle = makeGlassStyle(settings.sidebarColor);
   const t          = getTheme(settings.sidebarColor);
   const grain      = settings.sidebarGrain ?? 0.06;
+  const tr         = useT(settings.language);
 
   useEffect(() => {
     if (!poi) return;
@@ -363,7 +365,7 @@ function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavo
                 </div>
               )}
               {placeInfo.price && (
-                <span className="text-[11px] font-medium" style={{ color: t.textSecondary }}>{placeInfo.price}</span>
+                <span className="text-[11px] font-medium" style={{ color: t.textSecondary }}>{placeInfo.price === '__FREE__' ? tr('free') : placeInfo.price}</span>
               )}
             </div>
           )}
@@ -398,7 +400,7 @@ function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavo
               className={starKey > 0 ? (isFavorited ? 'star-pop' : 'star-burst') : ''}
               style={{ width: 12, height: 12, fill: isFavorited ? '#ff9500' : 'none', color: isFavorited ? '#ff9500' : 'currentColor', transition: 'fill 200ms ease-out, color 200ms ease-out' }}
             />
-            {isFavorited ? 'Sauvegardé' : 'Favori'}
+            {isFavorited ? tr('favorited') : tr('addFavorite')}
           </button>
 
           <button onClick={() => onAddToTrip(poi)}
@@ -408,7 +410,7 @@ function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavo
             onMouseLeave={e => { e.currentTarget.style.background = '#1c1c1e'; }}
           >
             <Plus style={{ width: 12, height: 12 }} />
-            Voyage
+            {tr('voyage')}
           </button>
         </div>
 
