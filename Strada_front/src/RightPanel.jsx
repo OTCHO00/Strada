@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Star, MapPin, Plus, Trash2, ChevronDown, Calendar, Search } from 'lucide-react';
+import { X, Star, MapPin, Plus, Trash2, ChevronDown, Calendar, Search, Pencil, Check } from 'lucide-react';
 import { makeGlassStyle, getTheme, GRAIN_SVG } from './theme.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -329,6 +329,8 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
   const [form, setForm] = useState({ nom: '', nb_jours: '', description: '', color: PALETTE[0] });
   const [expandedId, setExpandedId] = useState(null);
   const [plans, setPlans] = useState({});
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ nom: '', nb_jours: '', description: '' });
 
   useEffect(() => {
     const loadPlans = async () => {
@@ -365,6 +367,28 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
     try {
       await fetch(`http://localhost:8000/itineraire/${id}`, { method: 'DELETE' });
       setItineraries((p) => p.filter((i) => i.id !== id));
+    } catch (e) { console.error(e); }
+  };
+
+  const handleEditStart = (e, itin) => {
+    e.stopPropagation();
+    setEditingId(itin.id);
+    setEditForm({ nom: itin.nom, nb_jours: itin.nb_jours, description: itin.description || '' });
+    setExpandedId(null);
+  };
+
+  const handleEditSave = async (id) => {
+    if (!editForm.nom || !editForm.nb_jours) return;
+    try {
+      const res = await fetch(`http://localhost:8000/itineraire/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom: editForm.nom, nb_jours: parseInt(editForm.nb_jours, 10), description: editForm.description }),
+      });
+      if (!res.ok) { console.error('Erreur modification:', await res.text()); return; }
+      const updated = await res.json();
+      setItineraries(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i));
+      setEditingId(null);
     } catch (e) { console.error(e); }
   };
 
@@ -451,7 +475,49 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
                   className="rounded-2xl overflow-hidden fade-up"
                   style={{ background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', animationDelay: `${idx * 40}ms` }}
                 >
-                  {/* Trip row */}
+                  {/* Edit form (inline) */}
+                  {editingId === itin.id ? (
+                    <div className="p-4 space-y-2.5 fade-up" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tripColor(itineraries, itin.id) }} />
+                        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: t.textSecondary }}>Modifier le voyage</p>
+                      </div>
+                      <input
+                        type="text" value={editForm.nom}
+                        onChange={e => setEditForm({ ...editForm, nom: e.target.value })}
+                        placeholder="Nom du voyage" className={inputBase}
+                        style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(0,0,0,0.07)' }}
+                        autoFocus
+                      />
+                      <input
+                        type="number" value={editForm.nb_jours}
+                        onChange={e => setEditForm({ ...editForm, nb_jours: e.target.value })}
+                        placeholder="Nombre de jours" min="1" className={inputBase}
+                        style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(0,0,0,0.07)' }}
+                      />
+                      <input
+                        type="text" value={editForm.description}
+                        onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                        placeholder="Description (optionnel)" className={inputBase}
+                        style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(0,0,0,0.07)' }}
+                      />
+                      <div className="flex gap-2 pt-0.5">
+                        <button
+                          onClick={() => handleEditSave(itin.id)}
+                          className="btn-press flex-1 py-2 bg-[#1c1c1e] text-white text-xs font-medium rounded-xl hover:bg-[#3a3a3c] transition-colors cursor-default focus:outline-none flex items-center justify-center gap-1.5"
+                        >
+                          <Check style={{ width: 12, height: 12 }} /> Enregistrer
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className={btnSecondary} style={{ background: 'rgba(0,0,0,0.06)' }}
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                  /* Trip row */
                   <div
                     onClick={() => setExpandedId(isExpanded ? null : itin.id)}
                     className="item-press flex items-center gap-3 p-4 cursor-default select-none"
@@ -472,6 +538,13 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
                         {itin.nb_jours}j
                       </span>
                       <button
+                        onClick={(e) => handleEditStart(e, itin)}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-blue-50 hover:text-blue-500 transition-colors"
+                        style={{ color: t.textTertiary }}
+                      >
+                        <Pencil style={{ width: 12, height: 12 }} />
+                      </button>
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(itin.id); }}
                         className="w-7 h-7 rounded-lg flex items-center justify-center hover:text-red-500 hover:bg-red-50 transition-colors"
                         style={{ color: t.textTertiary }}
@@ -481,6 +554,7 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
                       <ChevronDown style={{ width: 15, height: 15, color: t.textTertiary, transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 240ms cubic-bezier(0.16, 1, 0.3, 1)', flexShrink: 0 }} />
                     </div>
                   </div>
+                  )}
 
                   {/* Expanded POI list */}
                   {isExpanded && (

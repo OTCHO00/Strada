@@ -10,6 +10,11 @@ class Itineraire(BaseModel):
     nb_jours: int
     description: str
 
+class ItineraireUpdate(BaseModel):
+    nom: Optional[str] = None
+    nb_jours: Optional[int] = None
+    description: Optional[str] = None
+
 class PoiCreate(BaseModel):
 
     nom: str

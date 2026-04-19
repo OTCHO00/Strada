@@ -2,7 +2,7 @@ from database import engine
 from typing import Annotated
 from models import Favorite, Itinerary, POI
 from sqlmodel import SQLModel, Session, select
-from shemas import FavoriteCreate, FavoriteRead, Itineraire, PlanFromFavorite, PoiCreate, PoiRead, PoiUpdate
+from shemas import FavoriteCreate, FavoriteRead, Itineraire, ItineraireUpdate, PlanFromFavorite, PoiCreate, PoiRead, PoiUpdate
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Depends, FastAPI, HTTPException
 from routes.generate import router as generate_router
@@ -77,6 +77,18 @@ def create_itineraire(itineraire: Itineraire, session: Annotated[Session, Depend
     session.refresh(itineraire_db)
 
     return itineraire_db
+
+@app.patch("/itineraire/{itineraire_id}")
+def update_itineraire(itineraire_id: int, data: ItineraireUpdate, session: Annotated[Session, Depends(get_session)]):
+    itin = session.get(Itinerary, itineraire_id)
+    if not itin:
+        raise HTTPException(status_code=404, detail="Itinéraire non trouvé")
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(itin, field, value)
+    session.add(itin)
+    session.commit()
+    session.refresh(itin)
+    return itin
 
 @app.post("/favorites", response_model=FavoriteRead)
 def create_favorite(
