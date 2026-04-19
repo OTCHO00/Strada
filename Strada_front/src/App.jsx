@@ -392,7 +392,7 @@ function App() {
         routeGeojson={Object.keys(multiDayRoutes).length === 0 ? routeGeojson : null}
         multiDayRoutes={multiDayRoutes}
         markers={mapMarkers}
-        tripMarkers={routePanelOpen ? [] : tripMarkers}
+        tripMarkers={routePanelOpen ? [] : favorites}
         onTripMarkerClick={handleTripMarkerClick}
         mapStyle={settings.mapStyle}
         defaultZoom={settings.defaultZoom}

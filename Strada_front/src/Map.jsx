@@ -88,16 +88,16 @@ const MapComponent = forwardRef(({ onPoiClick, routeGeojson, multiDayRoutes, mar
         );
       })}
 
-      {/* Marqueurs voyage (pins colorés) */}
-      {(tripMarkers || []).map((poi) => (
-        <Marker key={`trip-poi-${poi.id}`} longitude={poi.longitude} latitude={poi.latitude} anchor="bottom">
+      {/* Marqueurs favoris (étoile dorée) */}
+      {(tripMarkers || []).map((fav) => (
+        <Marker key={`fav-${fav.id}`} longitude={fav.longitude} latitude={fav.latitude} anchor="bottom">
           <div
-            onClick={(e) => { e.stopPropagation(); onTripMarkerClick?.(poi); }}
-            style={{ cursor: 'pointer', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.35))' }}
+            onClick={(e) => { e.stopPropagation(); onTripMarkerClick?.(fav); }}
+            style={{ cursor: 'pointer', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.30))' }}
           >
-            <svg viewBox="0 0 28 36" width="28" height="36" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 36 14 36C14 36 28 24.5 28 14C28 6.268 21.732 0 14 0Z" fill={poi.color}/>
-              <circle cx="14" cy="14" r="6" fill="white" fillOpacity="0.92"/>
+            <svg viewBox="0 0 32 38" width="28" height="34" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 0C7.163 0 0 7.163 0 16C0 27 16 38 16 38C16 38 32 27 32 16C32 7.163 24.837 0 16 0Z" fill="#ff9500"/>
+              <polygon points="16,8 17.8,13.5 23.5,13.5 19,17 20.8,22.5 16,19 11.2,22.5 13,17 8.5,13.5 14.2,13.5" fill="white" fillOpacity="0.95"/>
             </svg>
           </div>
         </Marker>
