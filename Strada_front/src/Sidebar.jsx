@@ -70,11 +70,7 @@ function Sidebar({ activeTab, onNavigate, settings = {}, plannerOpen = false }) 
 
         {/* ── Brand ── */}
         <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: `1px solid ${dividerColor}` }}>
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: dark ? 'rgba(255,255,255,0.15)' : '#1c1c1e' }}>
-            <div className="w-3 h-3 rounded-full" style={{ background: dark ? 'rgba(255,255,255,0.90)' : 'white' }} />
-          </div>
-          <span className="text-[15px] font-semibold tracking-tight" style={{ color: textPrimary }}>Strada</span>
+          <img src="/logo.svg" alt="Strada" className="h-7 flex-shrink-0" />
         </div>
 
         {/* ── Nav ── */}
