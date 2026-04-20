@@ -25,7 +25,7 @@ const routeCache = new globalThis.Map();
 async function fetchGoogleRoute(mode, waypoints) {
   if (waypoints.length < 2) return null;
   try {
-    const res = await fetch('${API}/directions', {
+    const res = await fetch(`${API}/directions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode, waypoints }),
@@ -179,14 +179,14 @@ function App() {
 
   // ── Fetch initial data ────────────────────────────────────────
   useEffect(() => {
-    fetch('${API}/itineraire')
+    fetch(`${API}/itineraire`)
       .then(res => res.ok ? res.json() : [])
       .then(data => { setItineraries(data); loadAllTripMarkers(data); })
       .catch(err => console.error('Erreur itinéraires:', err));
   }, []);
 
   useEffect(() => {
-    fetch('${API}/favorites')
+    fetch(`${API}/favorites`)
       .then(res => res.json())
       .then(data => setFavorites(data))
       .catch(err => console.error('Erreur favoris:', err));
@@ -227,7 +227,7 @@ function App() {
 
   const handleAddToFavorites = async () => {
     try {
-      const res = await fetch('${API}/favorites', {
+      const res = await fetch(`${API}/favorites`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -277,7 +277,7 @@ function App() {
         })
       });
       if (!res.ok) throw new Error(await res.text());
-      const listRes = await fetch('${API}/itineraire');
+      const listRes = await fetch(`${API}/itineraire`);
       if (listRes.ok) setItineraries(await listRes.json());
       loadAllTripMarkers();
       setShowItineraryModal(false);

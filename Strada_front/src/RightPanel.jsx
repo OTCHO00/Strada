@@ -354,7 +354,7 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
   const handleCreate = async () => {
     if (!form.nom || !form.nb_jours) return;
     try {
-      const res = await fetch('${API}/itineraire', {
+      const res = await fetch(`${API}/itineraire`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nom: form.nom, nb_jours: parseInt(form.nb_jours, 10), description: form.description }),
       });
