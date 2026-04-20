@@ -69,7 +69,7 @@ function Sidebar({ activeTab, onNavigate, settings = {}, plannerOpen = false }) 
       <div className="relative z-10 flex flex-col">
 
         {/* ── Brand ── */}
-        <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: `1px solid ${dividerColor}` }}>
+        <div className="flex items-center gap-3 px-6 py-3.5" style={{ borderBottom: `1px solid ${dividerColor}` }}>
           <img src="/logo.svg" alt="Strada" className="h-7 flex-shrink-0" />
         </div>
 
