@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import API from './api.js';
 import Map from './Map.jsx';
 import Sidebar from './Sidebar.jsx';
 import RightPanel from './RightPanel.jsx';
@@ -24,7 +25,7 @@ const routeCache = new globalThis.Map();
 async function fetchGoogleRoute(mode, waypoints) {
   if (waypoints.length < 2) return null;
   try {
-    const res = await fetch('http://localhost:8000/directions', {
+    const res = await fetch('${API}/directions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode, waypoints }),
@@ -105,7 +106,7 @@ function App() {
     setPlannerOpen(true);
     // Ouvre aussi le PanelsContainer avec les POIs du voyage
     try {
-      const res = await fetch(`http://localhost:8000/itineraire/${itinerary.id}/plan`);
+      const res = await fetch(`${API}/itineraire/${itinerary.id}/plan`);
       const pois = res.ok ? await res.json() : [];
       setRoutePanelItinerary(itinerary);
       setRoutePanelPois(pois);
@@ -163,7 +164,7 @@ function App() {
     try {
       const results = await Promise.all(
         list.map(async (trip) => {
-          const res = await fetch(`http://localhost:8000/itineraire/${trip.id}/plan`);
+          const res = await fetch(`${API}/itineraire/${trip.id}/plan`);
           if (!res.ok) return [];
           const pois = await res.json();
           const color = getTripColor(list, trip.id);
@@ -178,14 +179,14 @@ function App() {
 
   // ── Fetch initial data ────────────────────────────────────────
   useEffect(() => {
-    fetch('http://localhost:8000/itineraire')
+    fetch('${API}/itineraire')
       .then(res => res.ok ? res.json() : [])
       .then(data => { setItineraries(data); loadAllTripMarkers(data); })
       .catch(err => console.error('Erreur itinéraires:', err));
   }, []);
 
   useEffect(() => {
-    fetch('http://localhost:8000/favorites')
+    fetch('${API}/favorites')
       .then(res => res.json())
       .then(data => setFavorites(data))
       .catch(err => console.error('Erreur favoris:', err));
@@ -208,7 +209,7 @@ function App() {
     const trip = plannerTripRef.current;
     if (!trip) return;
     try {
-      const res = await fetch(`http://localhost:8000/itineraire/${trip.id}/plan`);
+      const res = await fetch(`${API}/itineraire/${trip.id}/plan`);
       if (res.ok) setRoutePanelPois(await res.json());
     } catch (e) {}
   }, [loadAllTripMarkers]);
@@ -226,7 +227,7 @@ function App() {
 
   const handleAddToFavorites = async () => {
     try {
-      const res = await fetch('http://localhost:8000/favorites', {
+      const res = await fetch('${API}/favorites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -251,7 +252,7 @@ function App() {
 
   const handleRemoveFromFavorites = async (favoriteId) => {
     try {
-      const res = await fetch(`http://localhost:8000/favorites/${favoriteId}`, { method: 'DELETE' });
+      const res = await fetch(`${API}/favorites/${favoriteId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Erreur suppression favori');
       setFavorites(prev => prev.filter(f => f.id !== favoriteId));
       addToast('Retiré des favoris', 'success');
@@ -263,7 +264,7 @@ function App() {
 
   const handleSelectItinerary = async (itinerary) => {
     try {
-      const res = await fetch(`http://localhost:8000/itineraire/${itinerary.id}/poi`, {
+      const res = await fetch(`${API}/itineraire/${itinerary.id}/poi`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -276,7 +277,7 @@ function App() {
         })
       });
       if (!res.ok) throw new Error(await res.text());
-      const listRes = await fetch('http://localhost:8000/itineraire');
+      const listRes = await fetch('${API}/itineraire');
       if (listRes.ok) setItineraries(await listRes.json());
       loadAllTripMarkers();
       setShowItineraryModal(false);

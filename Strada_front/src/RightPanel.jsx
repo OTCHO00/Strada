@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import API from './api.js';
 import { X, Star, MapPin, Plus, Trash2, ChevronDown, Calendar, Search, Pencil, Check } from 'lucide-react';
 import { makeGlassStyle, getTheme, GRAIN_SVG } from './theme.js';
 import { useT } from './translations.js';
@@ -226,7 +227,7 @@ function FavoritesPanel({ isVisible, isClosing, onClose, favorites, setFavorites
   const handleDeleteFavorite = async (favId) => {
     try {
       setDeletingId(favId);
-      const response = await fetch(`http://localhost:8000/favorites/${favId}`, { method: 'DELETE' });
+      const response = await fetch(`${API}/favorites/${favId}`, { method: 'DELETE' });
       if (!response.ok) throw new Error(`Erreur: ${response.status}`);
       setFavorites((prev) => prev.filter((f) => f.id !== favId));
     } catch (error) {
@@ -341,7 +342,7 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
       const newPlans = {};
       for (const itin of itineraries) {
         try {
-          const res = await fetch(`http://localhost:8000/itineraire/${itin.id}/plan`);
+          const res = await fetch(`${API}/itineraire/${itin.id}/plan`);
           if (res.ok) newPlans[itin.id] = await res.json();
         } catch (e) { newPlans[itin.id] = []; }
       }
@@ -353,7 +354,7 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
   const handleCreate = async () => {
     if (!form.nom || !form.nb_jours) return;
     try {
-      const res = await fetch('http://localhost:8000/itineraire', {
+      const res = await fetch('${API}/itineraire', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nom: form.nom, nb_jours: parseInt(form.nb_jours, 10), description: form.description }),
       });
@@ -369,7 +370,7 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`http://localhost:8000/itineraire/${id}`, { method: 'DELETE' });
+      await fetch(`${API}/itineraire/${id}`, { method: 'DELETE' });
       setItineraries((p) => p.filter((i) => i.id !== id));
     } catch (e) { console.error(e); }
   };
@@ -384,7 +385,7 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
   const handleEditSave = async (id) => {
     if (!editForm.nom || !editForm.nb_jours) return;
     try {
-      const res = await fetch(`http://localhost:8000/itineraire/${id}`, {
+      const res = await fetch(`${API}/itineraire/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nom: editForm.nom, nb_jours: parseInt(editForm.nb_jours, 10), description: editForm.description }),
@@ -398,8 +399,8 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
 
   const handleDeletePoi = async (itinId, poiId) => {
     try {
-      await fetch(`http://localhost:8000/itineraire/${itinId}/poi/${poiId}`, { method: 'DELETE' });
-      const res = await fetch(`http://localhost:8000/itineraire/${itinId}/plan`);
+      await fetch(`${API}/itineraire/${itinId}/poi/${poiId}`, { method: 'DELETE' });
+      const res = await fetch(`${API}/itineraire/${itinId}/plan`);
       if (res.ok) { const updated = await res.json(); setPlans(prev => ({ ...prev, [itinId]: updated })); }
     } catch (e) { console.error(e); }
   };

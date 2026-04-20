@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import API from './api.js';
 import { X, ChevronDown, Plus } from 'lucide-react';
 import { makeGlassStyle, getTheme, GRAIN_SVG } from './theme.js';
 
@@ -33,7 +34,7 @@ function BottomPlanner({ isVisible, isClosing, onClose, itinerary, itineraries, 
   const fetchPlan = async (id) => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:8000/itineraire/${id}/plan`);
+      const res = await fetch(`${API}/itineraire/${id}/plan`);
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
       const pool = list.filter(p => !p.day || p.day === 0);
@@ -62,7 +63,7 @@ function BottomPlanner({ isVisible, isClosing, onClose, itinerary, itineraries, 
       setCalendar(prev => ({ ...prev, [fromDay]: prev[fromDay].filter(p => p.id !== poi.id), [day]: [...(prev[day] || []), { ...poi, day, position: prev[day]?.length || 0 }] }));
     }
     try {
-      await fetch(`http://localhost:8000/itineraire/${itinerary.id}/poi/${poi.id}`, {
+      await fetch(`${API}/itineraire/${itinerary.id}/poi/${poi.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ day, position: 0 }),
       });
       onTripPoisChange?.();
@@ -77,7 +78,7 @@ function BottomPlanner({ isVisible, isClosing, onClose, itinerary, itineraries, 
     setCalendar(prev => ({ ...prev, [fromDay]: prev[fromDay].filter(p => p.id !== poi.id) }));
     setPlanPois(prev => [...prev, { ...poi, day: 0 }]);
     try {
-      await fetch(`http://localhost:8000/itineraire/${itinerary.id}/poi/${poi.id}`, {
+      await fetch(`${API}/itineraire/${itinerary.id}/poi/${poi.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ day: 0, position: 0 }),
       });
       onTripPoisChange?.();
@@ -87,7 +88,7 @@ function BottomPlanner({ isVisible, isClosing, onClose, itinerary, itineraries, 
 
   const handleDeletePoi = async (poiId, day) => {
     try {
-      await fetch(`http://localhost:8000/itineraire/${itinerary.id}/poi/${poiId}`, { method: 'DELETE' });
+      await fetch(`${API}/itineraire/${itinerary.id}/poi/${poiId}`, { method: 'DELETE' });
       if (!day || day === 0) setPlanPois(prev => prev.filter(p => p.id !== poiId));
       else setCalendar(prev => ({ ...prev, [day]: prev[day].filter(p => p.id !== poiId) }));
       onTripPoisChange?.();

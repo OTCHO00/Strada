@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import API from './api.js';
 import { X, MapPin } from 'lucide-react';
 
 function SelectItineraryModal({ poi, itineraries, onSelect, onClose }) {
@@ -12,7 +13,7 @@ function SelectItineraryModal({ poi, itineraries, onSelect, onClose }) {
       const itinsToLoad = itineraries.filter(itin => !newPlans.hasOwnProperty(itin.id));
       for (const itin of itinsToLoad) {
         try {
-          const res = await fetch(`http://localhost:8000/itineraire/${itin.id}/plan`);
+          const res = await fetch(`${API}/itineraire/${itin.id}/plan`);
           newPlans[itin.id] = res.ok ? (await res.json()) : [];
         } catch { newPlans[itin.id] = []; }
       }

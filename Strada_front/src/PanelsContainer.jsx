@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import API from './api.js';
 import { X, MapPin, GripVertical } from 'lucide-react';
 import { getDayColor } from './constants.js';
 import { makeGlassStyle, getTheme, GRAIN_SVG } from './theme.js';
@@ -235,7 +236,7 @@ function PanelsContainer({ isVisible, isClosing, onClose, itinerary, planPois, o
     setLocalPois(allUpdated); onDaysChange(selectedDays, allUpdated);
     await Promise.all(updatedPois.map(async poi => {
       try {
-        await fetch(`http://localhost:8000/itineraire/${itinerary.id}/poi/${poi.id}`, {
+        await fetch(`${API}/itineraire/${itinerary.id}/poi/${poi.id}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ day: poi.day, position: poi.position }),
         });
       } catch (e) { console.error(e); }
