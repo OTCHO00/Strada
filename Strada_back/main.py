@@ -23,9 +23,9 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "https://strada-front.vercel.app",
-        "https://*.vercel.app",
+        "https://strada-chi.vercel.app",
     ],
+    allow_origin_regex=r"https://strada.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
