@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Depends, FastAPI, HTTPException
 from routes.generate import router as generate_router
 from routes.directions import router as directions_router
+from routes.nearby import router as nearby_router
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
@@ -33,6 +34,7 @@ app.add_middleware(
 
 app.include_router(generate_router)
 app.include_router(directions_router)
+app.include_router(nearby_router)
 
 @app.on_event("startup")
 def on_startup():

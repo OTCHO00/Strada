@@ -91,6 +91,7 @@ function App() {
   const [itineraries, setItineraries] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [selectedPoi, setSelectedPoi] = useState(null);
+  const [secondaryPoi, setSecondaryPoi] = useState(null);
   const [showItineraryModal, setShowItineraryModal] = useState(false);
 
   // ── Planner state ─────────────────────────────────────────────
@@ -139,6 +140,9 @@ function App() {
 
   // ── Trip markers (tous les voyages, toujours visibles) ───────
   const [tripMarkers, setTripMarkers] = useState([]);
+
+  // ── Nearby markers ────────────────────────────────────────────
+  const [nearbyMarkers, setNearbyMarkers] = useState([]);
 
   const mapRef = useRef();
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -197,7 +201,7 @@ function App() {
     mapRef.current?.flyTo({ center: [location.lng, location.lat], zoom: 15, duration: 2000 });
   };
 
-  const handlePoiClick = (poiData) => setSelectedPoi(poiData);
+  const handlePoiClick = (poiData) => { setSelectedPoi(poiData); setSecondaryPoi(null); };
 
   // ── Trip markers handlers ─────────────────────────────────────
   // Called by OrganizePanel when POIs are mutated (add/remove/reorder)
@@ -215,11 +219,40 @@ function App() {
   }, [loadAllTripMarkers]);
 
   const handleTripMarkerClick = (poi) => {
+    setSecondaryPoi(null);
     setSelectedPoi({
       name: poi.nom,
       category: poi.category || 'Lieu',
       coordinates: { lat: poi.latitude, lng: poi.longitude },
     });
+  };
+
+  const handleNearbyMarkerClick = (place) => {
+    setSecondaryPoi({
+      name: place.name,
+      category: place.types?.[0] || 'Lieu',
+      coordinates: { lat: place.lat, lng: place.lng },
+    });
+  };
+
+  // ── Nearby handler ────────────────────────────────────────────
+  const handleNearbySearch = async (coords) => {
+    if (!coords) { setNearbyMarkers([]); return; }
+    try {
+      const res = await fetch(`${API}/nearby`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat: coords.lat, lng: coords.lng, radius: 200 }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const filtered = (data.places || []).filter(p => {
+        const dlat = p.lat - coords.lat;
+        const dlng = p.lng - coords.lng;
+        return Math.sqrt(dlat * dlat + dlng * dlng) > 0.0001; // ~10m
+      });
+      setNearbyMarkers(filtered);
+    } catch (e) { console.error('Nearby error', e); }
   };
 
   // ── POI handlers ──────────────────────────────────────────────
@@ -433,6 +466,8 @@ function App() {
         markers={mapMarkers}
         tripMarkers={routePanelOpen ? [] : favorites}
         onTripMarkerClick={handleTripMarkerClick}
+        nearbyMarkers={nearbyMarkers}
+        onNearbyMarkerClick={handleNearbyMarkerClick}
         mapStyle={settings.mapStyle}
         defaultZoom={settings.defaultZoom}
         defaultLng={settings.defaultLng}
@@ -450,13 +485,27 @@ function App() {
       {selectedPoi && !showItineraryModal && (
         <PoiCard
           poi={selectedPoi}
-          onClose={() => setSelectedPoi(null)}
+          onClose={() => { setSelectedPoi(null); setSecondaryPoi(null); setNearbyMarkers([]); }}
+          onAddToTrip={handleAddToTrip}
+          onAddToFavorites={handleAddToFavorites}
+          onRemoveFromFavorites={handleRemoveFromFavorites}
+          onNearbySearch={handleNearbySearch}
+          favorites={favorites}
+          searchOpen={searchOpen}
+          settings={settings}
+        />
+      )}
+
+      {secondaryPoi && (
+        <PoiCard
+          poi={secondaryPoi}
+          onClose={() => setSecondaryPoi(null)}
           onAddToTrip={handleAddToTrip}
           onAddToFavorites={handleAddToFavorites}
           onRemoveFromFavorites={handleRemoveFromFavorites}
           favorites={favorites}
-          searchOpen={searchOpen}
           settings={settings}
+          offsetRight={304}
         />
       )}
 

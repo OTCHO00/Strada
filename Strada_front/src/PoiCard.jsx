@@ -105,12 +105,14 @@ async function fetchPlaceData(name, lat, lng) {
   }
 }
 
-function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavorites, favorites = [], searchOpen, settings = {} }) {
+function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavorites, onNearbySearch, favorites = [], searchOpen, settings = {}, offsetRight = 0 }) {
   const [starKey, setStarKey]       = useState(0);
   const [photos, setPhotos]         = useState([]);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [placeInfo, setPlaceInfo]   = useState(null);
+  const [nearbyActive, setNearbyActive] = useState(false);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
 
   // Drag
   const [pos, setPos]       = useState(null); // null = position par défaut (coin haut-droit)
@@ -138,8 +140,8 @@ function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavo
       .finally(() => setPhotoLoading(false));
   }, [poi?.name, poi?.coordinates?.lat, poi?.coordinates?.lng]);
 
-  // Reset position on new POI
-  useEffect(() => { setPos(null); }, [poi?.name]);
+  // Reset position + nearby on new POI
+  useEffect(() => { setPos(null); setNearbyActive(false); onNearbySearch?.(null); }, [poi?.name]);
 
   // Drag listeners
   useEffect(() => {
@@ -170,6 +172,18 @@ function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavo
 
   const existingFav = findFavorite(poi, favorites);
   const isFavorited = !!existingFav;
+
+  const handleNearbyClick = async () => {
+    if (nearbyActive) {
+      setNearbyActive(false);
+      onNearbySearch?.(null);
+      return;
+    }
+    setNearbyLoading(true);
+    setNearbyActive(true);
+    await onNearbySearch?.({ lat: poi.coordinates.lat, lng: poi.coordinates.lng });
+    setNearbyLoading(false);
+  };
 
   const handleFavoriteClick = async () => {
     setStarKey(k => k + 1);
@@ -219,10 +233,10 @@ function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavo
       ref={cardRef}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
-      className={`fixed w-72 z-[48] rounded-2xl overflow-hidden fade-up ${pos ? '' : 'top-4 right-4'}`}
+      className={`fixed w-72 z-[48] rounded-2xl overflow-hidden fade-up ${pos ? '' : 'top-4'}`}
       style={{
         ...glassStyle,
-        ...(pos ? { left: pos.x, top: pos.y } : {}),
+        ...(pos ? { left: pos.x, top: pos.y } : { right: `${16 + offsetRight}px` }),
         cursor: dragging ? 'grabbing' : 'grab',
         userSelect: 'none',
       }}
@@ -386,32 +400,60 @@ function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavo
         <div style={{ height: 1, background: t.divider, margin: '0 16px' }} />
 
         {/* ── Actions ── */}
-        <div className="flex gap-2 px-4 py-3">
-          <button onClick={handleFavoriteClick}
-            className="btn-press flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl cursor-default focus:outline-none"
+        <div className="flex flex-col gap-2 px-4 py-3">
+          <div className="flex gap-2">
+            <button onClick={handleFavoriteClick}
+              className="btn-press flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl cursor-default focus:outline-none"
+              style={{
+                color: isFavorited ? '#ff9500' : t.textSecondary,
+                background: isFavorited ? 'rgba(255,149,0,0.12)' : t.inputBg,
+                border: `1px solid ${isFavorited ? 'rgba(255,149,0,0.30)' : t.divider}`,
+                transition: 'background 200ms ease-out, color 200ms ease-out, border-color 200ms ease-out, transform 160ms cubic-bezier(0.16,1,0.3,1), opacity 160ms ease-out',
+              }}
+            >
+              <Star key={starKey}
+                className={starKey > 0 ? (isFavorited ? 'star-pop' : 'star-burst') : ''}
+                style={{ width: 12, height: 12, fill: isFavorited ? '#ff9500' : 'none', color: isFavorited ? '#ff9500' : 'currentColor', transition: 'fill 200ms ease-out, color 200ms ease-out' }}
+              />
+              {isFavorited ? tr('favorited') : tr('addFavorite')}
+            </button>
+
+            <button onClick={() => onAddToTrip(poi)}
+              className="btn-press flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-white rounded-xl cursor-default focus:outline-none"
+              style={{ background: '#1c1c1e', border: '1px solid #1c1c1e', transition: 'background 150ms ease-out, transform 160ms cubic-bezier(0.16,1,0.3,1), opacity 160ms ease-out' }}
+              onMouseEnter={e => { if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) e.currentTarget.style.background = '#3a3a3c'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#1c1c1e'; }}
+            >
+              <Plus style={{ width: 12, height: 12 }} />
+              {tr('voyage')}
+            </button>
+          </div>
+
+          {/* Bouton Nearby — masqué si ouvert depuis un marqueur nearby */}
+          {onNearbySearch && <button
+            onClick={handleNearbyClick}
+            disabled={nearbyLoading}
+            className="btn-press w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl cursor-default focus:outline-none"
             style={{
-              color: isFavorited ? '#ff9500' : t.textSecondary,
-              background: isFavorited ? 'rgba(255,149,0,0.12)' : t.inputBg,
-              border: `1px solid ${isFavorited ? 'rgba(255,149,0,0.30)' : t.divider}`,
+              color: nearbyActive ? '#5856d6' : t.textSecondary,
+              background: nearbyActive ? 'rgba(88,86,214,0.10)' : t.inputBg,
+              border: `1px solid ${nearbyActive ? 'rgba(88,86,214,0.30)' : t.divider}`,
+              opacity: nearbyLoading ? 0.6 : 1,
               transition: 'background 200ms ease-out, color 200ms ease-out, border-color 200ms ease-out, transform 160ms cubic-bezier(0.16,1,0.3,1), opacity 160ms ease-out',
             }}
           >
-            <Star key={starKey}
-              className={starKey > 0 ? (isFavorited ? 'star-pop' : 'star-burst') : ''}
-              style={{ width: 12, height: 12, fill: isFavorited ? '#ff9500' : 'none', color: isFavorited ? '#ff9500' : 'currentColor', transition: 'fill 200ms ease-out, color 200ms ease-out' }}
-            />
-            {isFavorited ? tr('favorited') : tr('addFavorite')}
-          </button>
-
-          <button onClick={() => onAddToTrip(poi)}
-            className="btn-press flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-white rounded-xl cursor-default focus:outline-none"
-            style={{ background: '#1c1c1e', border: '1px solid #1c1c1e', transition: 'background 150ms ease-out, transform 160ms cubic-bezier(0.16,1,0.3,1), opacity 160ms ease-out' }}
-            onMouseEnter={e => { if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) e.currentTarget.style.background = '#3a3a3c'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#1c1c1e'; }}
-          >
-            <Plus style={{ width: 12, height: 12 }} />
-            {tr('voyage')}
-          </button>
+            {nearbyLoading ? (
+              <svg className="animate-spin" style={{ width: 12, height: 12 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ width: 12, height: 12 }}>
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M6.34 6.34a8 8 0 1 0 11.32 0"/>
+              </svg>
+            )}
+            {nearbyActive ? tr('cancelNearby') : tr('nearby')}
+          </button>}
         </div>
 
       </div>

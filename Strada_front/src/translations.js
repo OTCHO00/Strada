@@ -36,7 +36,7 @@ const T = {
     selectDays: 'Sélectionnez des jours', noPlanned: 'Aucun lieu planifié',
     noPOI: 'Aucun lieu prévu', nextDay: 'Jour suivant',
     // PoiCard
-    free: 'Gratuit',
+    free: 'Gratuit', nearby: 'À proximité', cancelNearby: 'Annuler',
   },
   en: {
     // Navigation
@@ -75,7 +75,7 @@ const T = {
     selectDays: 'Select days', noPlanned: 'No places planned',
     noPOI: 'No places scheduled', nextDay: 'Next day',
     // PoiCard
-    free: 'Free',
+    free: 'Free', nearby: 'Nearby', cancelNearby: 'Cancel',
   },
 };
 
