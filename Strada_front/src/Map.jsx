@@ -74,7 +74,7 @@ function getNearbyStyle(types = []) {
   return DEFAULT_NEARBY;
 }
 
-const MapComponent = forwardRef(({ onPoiClick, routeGeojson, multiDayRoutes, markers, tripMarkers, onTripMarkerClick, nearbyMarkers, onNearbyMarkerClick, mapStyle, defaultZoom, defaultLng, defaultLat }, ref) => {
+const MapComponent = forwardRef(({ onPoiClick, routeGeojson, multiDayRoutes, markers, tripMarkers, onTripMarkerClick, nearbyMarkers, nearbyExiting, onNearbyMarkerClick, mapStyle, defaultZoom, defaultLng, defaultLat }, ref) => {
   const mapRef = useRef();
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -165,8 +165,14 @@ const MapComponent = forwardRef(({ onPoiClick, routeGeojson, multiDayRoutes, mar
         return (
           <Marker key={`nearby-${idx}`} longitude={place.lng} latitude={place.lat} anchor="bottom">
             <div
-              className="nearby-marker"
-              style={{ animationDelay: `${idx * 50}ms`, filter: `drop-shadow(0 2px 6px ${color}66)`, cursor: 'pointer' }}
+              className={nearbyExiting ? 'nearby-marker-exit' : 'nearby-marker'}
+              style={{
+                animationDelay: nearbyExiting
+                  ? `${(nearbyMarkers.length - 1 - idx) * 25}ms`
+                  : `${idx * 50}ms`,
+                filter: `drop-shadow(0 2px 6px ${color}66)`,
+                cursor: 'pointer',
+              }}
               onClick={(e) => { e.stopPropagation(); onNearbyMarkerClick?.(place); }}
             >
               <svg viewBox="0 0 28 34" width="26" height="31" fill="none" xmlns="http://www.w3.org/2000/svg">

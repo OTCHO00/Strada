@@ -143,6 +143,13 @@ function App() {
 
   // ── Nearby markers ────────────────────────────────────────────
   const [nearbyMarkers, setNearbyMarkers] = useState([]);
+  const [nearbyExiting, setNearbyExiting] = useState(false);
+
+  const clearNearbyMarkers = useCallback(() => {
+    if (nearbyMarkers.length === 0) return;
+    setNearbyExiting(true);
+    setTimeout(() => { setNearbyMarkers([]); setNearbyExiting(false); }, 220);
+  }, [nearbyMarkers.length]);
 
   const mapRef = useRef();
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -237,7 +244,7 @@ function App() {
 
   // ── Nearby handler ────────────────────────────────────────────
   const handleNearbySearch = async (coords) => {
-    if (!coords) { setNearbyMarkers([]); return; }
+    if (!coords) { clearNearbyMarkers(); return; }
     try {
       const res = await fetch(`${API}/nearby`, {
         method: 'POST',
@@ -467,6 +474,7 @@ function App() {
         tripMarkers={routePanelOpen ? [] : favorites}
         onTripMarkerClick={handleTripMarkerClick}
         nearbyMarkers={nearbyMarkers}
+        nearbyExiting={nearbyExiting}
         onNearbyMarkerClick={handleNearbyMarkerClick}
         mapStyle={settings.mapStyle}
         defaultZoom={settings.defaultZoom}
@@ -485,7 +493,7 @@ function App() {
       {selectedPoi && !showItineraryModal && (
         <PoiCard
           poi={selectedPoi}
-          onClose={() => { setSelectedPoi(null); setSecondaryPoi(null); setNearbyMarkers([]); }}
+          onClose={() => { setSelectedPoi(null); setSecondaryPoi(null); clearNearbyMarkers(); }}
           onAddToTrip={handleAddToTrip}
           onAddToFavorites={handleAddToFavorites}
           onRemoveFromFavorites={handleRemoveFromFavorites}
