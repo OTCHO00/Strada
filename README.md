@@ -2,7 +2,7 @@
 
 Strada est un outil visuel et agréable pour organiser ses trips, sans la complexité des outils existants.
 
-![preview](.github/preview.png)
+https://strada-chi.vercel.app/
 
 ## Ce que ça fait
 
