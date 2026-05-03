@@ -51,9 +51,11 @@ async def get_directions(payload: DirectionsRequest):
         )
 
     if not res.is_success:
+        print(f"[Directions] HTTP error {res.status_code}: {res.text}")
         raise HTTPException(status_code=502, detail="Erreur Google Directions")
 
     data = res.json()
+    print(f"[Directions] Google status: {data.get('status')} | error: {data.get('error_message', '')}")
     if data.get("status") != "OK":
         raise HTTPException(status_code=502, detail=f"Google Directions: {data.get('status')}")
 
