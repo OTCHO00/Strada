@@ -43,6 +43,19 @@ function BottomPlanner({ isVisible, isClosing, onClose, itinerary, itineraries, 
     }
   }, [isVisible]);
 
+  // Quand la fermeture commence, on libère les styles inline pour que
+  // l'animation CSS planner-slide-out puisse jouer proprement
+  useEffect(() => {
+    if (!isClosing) return;
+    const el = panelRef.current;
+    if (!el) return;
+    el.style.animation  = '';
+    el.style.transform  = '';
+    el.style.transition = '';
+    el.style.cursor     = '';
+    snappedRef.current  = false;
+  }, [isClosing]);
+
   const onMouseDown = (e) => {
     const el = panelRef.current;
     if (!el) return;
