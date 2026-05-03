@@ -64,6 +64,7 @@ const DEFAULT_SETTINGS = {
   defaultCity: 'Paris',
   defaultLng: 2.3522,
   defaultLat: 48.8566,
+  searchRadius: 500,
 };
 
 function App() {
@@ -250,7 +251,7 @@ function App() {
       const res = await fetch(`${API}/nearby`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: coords.lat, lng: coords.lng, radius: 200 }),
+        body: JSON.stringify({ lat: coords.lat, lng: coords.lng, radius: settings.searchRadius ?? 500 }),
       });
       if (!res.ok) return;
       const data = await res.json();

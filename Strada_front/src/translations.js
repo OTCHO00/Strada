@@ -31,6 +31,7 @@ const T = {
     language: 'Langue', units: 'Unités', transport: 'Transport',
     grain: 'Grain', grainNone: 'Aucun', grainSubtle: 'Subtil', grainMedium: 'Moyen', grainStrong: 'Fort',
     resetAppearance: "Réinitialiser l'apparence", map: 'Carte', startZoom: 'Zoom de départ',
+    searchRadius: 'Rayon de recherche',
     // Route / PanelsContainer
     day: 'Jour', days: 'Jours', dayShort: 'J', trip: 'Voyage',
     selectDays: 'Sélectionnez des jours', noPlanned: 'Aucun lieu planifié',
@@ -70,6 +71,7 @@ const T = {
     language: 'Language', units: 'Units', transport: 'Transport',
     grain: 'Grain', grainNone: 'None', grainSubtle: 'Subtle', grainMedium: 'Medium', grainStrong: 'Strong',
     resetAppearance: 'Reset appearance', map: 'Map', startZoom: 'Start zoom',
+    searchRadius: 'Search radius',
     // Route / PanelsContainer
     day: 'Day', days: 'Days', dayShort: 'D', trip: 'Trip',
     selectDays: 'Select days', noPlanned: 'No places planned',

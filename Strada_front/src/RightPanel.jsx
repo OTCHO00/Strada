@@ -906,29 +906,28 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
 
   if (!isVisible && !isClosing) return null;
 
-  const { sidebarColor: color = '#dfe2ef', sidebarGrain: grain = 0.06, mapStyle = 'streets-v12', defaultZoom = 10, language = 'fr', units = 'km', defaultTransport = 'driving', defaultCity = 'Paris' } = settings;
+  const { sidebarColor: color = '#dfe2ef', sidebarGrain: grain = 0.06, mapStyle = 'streets-v12', defaultZoom = 10, language = 'fr', units = 'km', defaultCity = 'Paris', searchRadius = 500 } = settings;
   const t = getTheme(color);
   const tr = useT(language);
 
-  const sectionHeader = 'text-[10px] font-semibold uppercase tracking-wider mb-3';
-  const divider = { borderBottom: `1px solid ${t.divider}`, marginBottom: 0 };
-  const toggleBtn = (active) => ({
-    padding: '6px 14px',
-    borderRadius: 10,
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: 'default',
-    border: 'none',
-    outline: 'none',
-    transition: 'background 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out',
-    background: active ? '#1c1c1e' : 'rgba(0,0,0,0.05)',
-    color: active ? '#ffffff' : '#6c6c70',
-    boxShadow: active ? '0 1px 4px rgba(0,0,0,0.2)' : 'none',
+  const cardBg   = t.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.025)';
+  const cardStyle = { background: cardBg, border: `1px solid ${t.divider}`, borderRadius: 16, padding: '14px 16px' };
+  const cardTitle = { fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: t.textTertiary, marginBottom: 14 };
+  const row       = { display: 'flex', alignItems: 'center', justifyContent: 'space-between' };
+
+  const chip = (active) => ({
+    padding: '5px 12px', borderRadius: 9, fontSize: 12, fontWeight: 500,
+    cursor: 'default', border: 'none', outline: 'none',
+    transition: 'background 140ms, color 140ms, box-shadow 140ms',
+    background: active ? '#1c1c1e' : t.inputBg,
+    color:      active ? '#ffffff' : t.textSecondary,
+    boxShadow:  active ? '0 1px 4px rgba(0,0,0,0.2)' : 'none',
   });
 
   return (
     <GlassPanel settings={settings} className={otherPanelsCls} isClosing={isClosing}>
-      {/* Header */}
+
+      {/* ── Header ── */}
       <div className={panelHeader} style={{ borderBottom: `1px solid ${t.divider}` }}>
         <div>
           <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>{tr('settings')}</p>
@@ -939,25 +938,23 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
 
-        {/* ── Section 1: GÉNÉRAL ── */}
-        <div className="px-5 py-4" style={divider}>
-          <p className={sectionHeader} style={{ color: t.textTertiary }}>{tr('general')}</p>
+        {/* ══ Card 1 — Général ══════════════════════════════════════ */}
+        <div style={cardStyle}>
+          <p style={cardTitle}>{tr('general')}</p>
 
-          {/* Default city */}
+          {/* Ville de départ */}
           <div className="mb-3">
-            <div className="flex items-center justify-between mb-1.5">
+            <div style={{ ...row, marginBottom: 8 }}>
               <span className="text-[13px] font-medium" style={{ color: t.textPrimary }}>{tr('defaultCity')}</span>
-              <span className="text-[11px] truncate max-w-[130px]" style={{ color: t.textTertiary }}>{defaultCity}</span>
+              <span className="text-[11px] truncate max-w-[140px]" style={{ color: t.textTertiary }}>{defaultCity}</span>
             </div>
             <div className="relative">
               <input
-                type="text"
-                value={cityInput}
-                onChange={e => searchCity(e.target.value)}
+                type="text" value={cityInput} onChange={e => searchCity(e.target.value)}
                 placeholder={tr('searchCity')}
-                className="w-full px-3 py-2 rounded-xl text-[12px] focus:outline-none transition-all"
+                className="w-full px-3 py-2 rounded-xl text-[12px] focus:outline-none"
                 style={{ background: t.inputBg, border: `1px solid ${t.inputBorder}`, color: t.textPrimary }}
               />
               {cityLoading && (
@@ -970,7 +967,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
                   style={{ background: t.dark ? 'rgba(30,30,46,0.98)' : 'rgba(248,248,252,0.98)', border: `1px solid ${t.inputBorder}`, boxShadow: '0 4px 16px rgba(0,0,0,0.10)' }}>
                   {citySuggestions.map(f => (
                     <button key={f.id} onClick={() => selectCity(f)}
-                      className="w-full text-left px-3 py-2 text-[12px] transition-colors cursor-default focus:outline-none truncate"
+                      className="w-full text-left px-3 py-2 text-[12px] cursor-default focus:outline-none truncate"
                       style={{ color: t.textPrimary }}
                       onMouseEnter={e => e.currentTarget.style.background = t.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'}
                       onMouseLeave={e => e.currentTarget.style.background = ''}>
@@ -982,153 +979,142 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
             </div>
           </div>
 
-          {/* Language */}
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[13px] font-medium" style={{ color: t.textPrimary }}>{tr('language')}</span>
-            <div className="flex gap-1">
-              {['fr', 'en'].map(lang => (
-                <button key={lang} onClick={() => onSettingsChange({ language: lang })}
-                  style={toggleBtn(language === lang)}
-                  className="cursor-default focus:outline-none">
-                  {lang.toUpperCase()}
-                </button>
-              ))}
+          {/* Langue + Unités côte à côte */}
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: t.textSecondary }}>{tr('language')}</p>
+              <div className="flex gap-1">
+                {['fr', 'en'].map(lang => (
+                  <button key={lang} onClick={() => onSettingsChange({ language: lang })}
+                    style={chip(language === lang)} className="cursor-default focus:outline-none flex-1 text-center">
+                    {lang.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: t.textSecondary }}>{tr('units')}</p>
+              <div className="flex gap-1">
+                {['km', 'miles'].map(u => (
+                  <button key={u} onClick={() => onSettingsChange({ units: u })}
+                    style={chip(units === u)} className="cursor-default focus:outline-none flex-1 text-center">
+                    {u}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Units */}
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[13px] font-medium" style={{ color: t.textPrimary }}>{tr('units')}</span>
-            <div className="flex gap-1">
-              {['km', 'miles'].map(u => (
-                <button key={u} onClick={() => onSettingsChange({ units: u })}
-                  style={toggleBtn(units === u)}
-                  className="cursor-default focus:outline-none">
-                  {u}
-                </button>
-              ))}
+          {/* Rayon de recherche */}
+          <div>
+            <div style={{ ...row, marginBottom: 8 }}>
+              <p className="text-[11px] font-medium" style={{ color: t.textSecondary }}>{tr('searchRadius')}</p>
+              <span className="text-[11px] font-semibold" style={{ color: t.textTertiary }}>
+                {searchRadius >= 1000 ? `${searchRadius / 1000} km` : `${searchRadius} m`}
+              </span>
             </div>
-          </div>
-
-          {/* Default transport */}
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium" style={{ color: t.textPrimary }}>{tr('transport')}</span>
-            <div className="flex gap-1 rounded-xl p-1" style={{ background: t.inputBg }}>
-              {[{ key: 'driving', src: '/car.png' }, { key: 'cycling', src: '/bike.png' }, { key: 'walking', src: '/man-walking.png' }, { key: 'flying', src: '/airplane.png' }].map(({ key, src }) => (
-                <button key={key} onClick={() => onSettingsChange({ defaultTransport: key })}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-default focus:outline-none ${defaultTransport === key ? 'bg-white shadow-sm' : ''}`}>
-                  <img src={src} alt={key} className={`w-5 h-5 object-contain ${defaultTransport === key ? 'opacity-100' : 'opacity-40'}`} />
+            <div className="flex gap-1.5">
+              {[200, 500, 1000, 2000, 5000].map(r => (
+                <button key={r} onClick={() => onSettingsChange({ searchRadius: r })}
+                  className="btn-press flex-1 py-1.5 rounded-xl text-[11px] font-medium cursor-default focus:outline-none"
+                  style={searchRadius === r ? { background: '#1c1c1e', color: 'white', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }
+                    : { background: t.inputBg, color: t.textSecondary }}>
+                  {r >= 1000 ? `${r / 1000}km` : `${r}m`}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Divider */}
-        <div style={{ height: 1, background: t.divider, margin: '0 20px' }} />
+        {/* ══ Card 2 — Apparence ════════════════════════════════════ */}
+        <div style={cardStyle}>
+          <p style={cardTitle}>{tr('appearance')}</p>
 
-        {/* ── Section 2: APPARENCE ── */}
-        <div className="px-5 py-4" style={divider}>
-          <p className={sectionHeader} style={{ color: t.textTertiary }}>{tr('appearance')}</p>
-
-          {/* Color presets grid */}
-          <div className="grid grid-cols-6 gap-2 mb-3">
+          {/* Swatches */}
+          <div className="grid grid-cols-7 gap-2 mb-4">
             {PRESETS.map(preset => {
               const isActive = color === preset.hex;
               const isDarkPreset = parseInt(preset.hex.slice(1,3),16)*299+parseInt(preset.hex.slice(3,5),16)*587+parseInt(preset.hex.slice(5,7),16)*114 < 160*1000;
               return (
-                <button
-                  key={preset.hex}
-                  onClick={() => onSettingsChange({ sidebarColor: preset.hex })}
-                  title={preset.name}
+                <button key={preset.hex} onClick={() => onSettingsChange({ sidebarColor: preset.hex })} title={preset.name}
                   className="btn-press relative w-full aspect-square rounded-xl cursor-default focus:outline-none overflow-hidden"
                   style={{
-                    background: preset.glass
-                      ? 'linear-gradient(135deg, rgba(223,226,239,0.9) 0%, rgba(200,205,230,0.6) 50%, rgba(223,226,239,0.9) 100%)'
-                      : preset.hex,
+                    background: preset.glass ? 'linear-gradient(135deg, rgba(223,226,239,0.9) 0%, rgba(200,205,230,0.6) 50%, rgba(223,226,239,0.9) 100%)' : preset.hex,
                     border: isActive ? '2px solid #1c1c1e' : '2px solid transparent',
                     boxShadow: isActive ? '0 0 0 2px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.12)',
-                    outline: isActive ? '2px solid rgba(0,0,0,0.2)' : 'none',
-                    outlineOffset: 2,
-                    backdropFilter: preset.glass ? 'blur(4px)' : 'none',
-                  }}
-                >
+                    outline: isActive ? '2px solid rgba(0,0,0,0.2)' : 'none', outlineOffset: 2,
+                  }}>
                   {preset.glass && <div className="absolute inset-0 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 50%, rgba(255,255,255,0.2) 100%)' }} />}
                   {isActive && (
-                    <svg viewBox="0 0 10 8" fill="none" className="absolute inset-0 m-auto w-2.5 h-2.5" style={{ position: 'relative', zIndex: 1 }}>
+                    <svg viewBox="0 0 10 8" fill="none" style={{ position: 'absolute', inset: 0, margin: 'auto', width: 10, height: 8, zIndex: 1 }}>
                       <path d="M1 4l2.5 2.5L9 1" stroke={isDarkPreset ? 'white' : '#1c1c1e'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   )}
                 </button>
               );
             })}
-
-            {/* Custom color picker */}
-            <label className="relative w-full aspect-square rounded-xl cursor-pointer overflow-hidden" title="Couleur personnalisée"
-              style={{ border: '2px solid rgba(0,0,0,0.10)', boxShadow: '0 1px 3px rgba(0,0,0,0.12)', background: 'conic-gradient(red,yellow,lime,cyan,blue,magenta,red)' }}>
+            {/* Custom picker */}
+            <label className="relative w-full aspect-square rounded-xl cursor-pointer flex items-center justify-center" title="Couleur personnalisée"
+              style={{
+                background: `linear-gradient(${color}, ${color}) padding-box, conic-gradient(red,yellow,lime,cyan,blue,magenta,red) border-box`,
+                border: '2.5px solid transparent',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+              }}>
               <input type="color" value={color} onChange={e => onSettingsChange({ sidebarColor: e.target.value })}
                 className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+              <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                className="w-3 h-3 pointer-events-none relative z-10"
+                style={{ stroke: t.dark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.35)' }}>
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+              </svg>
             </label>
           </div>
 
-          {/* Grain buttons */}
-          <p className={sectionHeader} style={{ color: t.textTertiary, marginTop: 12 }}>{tr('grain')}</p>
-          <div className="flex gap-2 mb-3">
+          {/* Grain */}
+          <div style={{ ...row, marginBottom: 8 }}>
+            <p className="text-[11px] font-medium" style={{ color: t.textSecondary }}>{tr('grain')}</p>
+          </div>
+          <div className="flex gap-1.5 mb-3">
             {GRAIN_LEVELS.map(level => (
-              <button
-                key={level.value}
-                onClick={() => onSettingsChange({ sidebarGrain: level.value })}
-                className="btn-press flex-1 py-2 rounded-xl text-[11px] font-medium cursor-default focus:outline-none"
-                style={grain === level.value ? {
-                  background: '#1c1c1e', color: 'white', boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
-                } : {
-                  background: t.inputBg, color: t.textSecondary,
-                }}
-              >
+              <button key={level.value} onClick={() => onSettingsChange({ sidebarGrain: level.value })}
+                className="btn-press flex-1 py-1.5 rounded-xl text-[11px] font-medium cursor-default focus:outline-none"
+                style={grain === level.value ? { background: '#1c1c1e', color: 'white', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }
+                  : { background: t.inputBg, color: t.textSecondary }}>
                 {tr(level.labelKey)}
               </button>
             ))}
           </div>
 
           {/* Reset */}
-          <button
-            onClick={() => onSettingsChange({ sidebarColor: '#dfe2ef', sidebarGrain: 0.06 })}
-            className="text-[11px] transition-colors cursor-default focus:outline-none"
-            style={{ color: t.textTertiary }}
-          >
+          <button onClick={() => onSettingsChange({ sidebarColor: '#dfe2ef', sidebarGrain: 0.06 })}
+            className="text-[11px] cursor-default focus:outline-none" style={{ color: t.textTertiary }}>
             {tr('resetAppearance')}
           </button>
         </div>
 
-        {/* Divider */}
-        <div style={{ height: 1, background: t.divider, margin: '0 20px' }} />
+        {/* ══ Card 3 — Carte ════════════════════════════════════════ */}
+        <div style={cardStyle}>
+          <p style={cardTitle}>{tr('map')}</p>
 
-        {/* ── Section 3: CARTE ── */}
-        <div className="px-5 py-4">
-          <p className={sectionHeader} style={{ color: t.textTertiary }}>{tr('map')}</p>
-
-          {/* Map style 2x2 grid */}
+          {/* Map styles 2×2 */}
           <div className="grid grid-cols-2 gap-2 mb-4">
             {MAP_STYLES.map(ms => {
               const isActive = mapStyle === ms.key;
               return (
-                <button
-                  key={ms.key}
-                  onClick={() => onSettingsChange({ mapStyle: ms.key })}
+                <button key={ms.key} onClick={() => onSettingsChange({ mapStyle: ms.key })}
                   className="btn-press flex items-center gap-2.5 p-2.5 rounded-xl cursor-default focus:outline-none text-left"
                   style={{
                     background: isActive ? 'rgba(28,28,30,0.08)' : t.inputBg,
                     border: isActive ? '1.5px solid #1c1c1e' : `1px solid ${t.inputBorder}`,
                     boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.05)',
-                  }}
-                >
-                  <div className="w-10 h-10 rounded-lg flex-shrink-0" style={{ background: ms.preview }} />
+                  }}>
+                  <div className="w-9 h-9 rounded-lg flex-shrink-0" style={{ background: ms.preview }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-[12px] font-medium truncate" style={{ color: t.textPrimary }}>{ms.label}</p>
                     {isActive && (
-                      <div className="w-4 h-4 rounded-full bg-[#1c1c1e] flex items-center justify-center mt-0.5">
-                        <svg viewBox="0 0 10 8" fill="none" className="w-2 h-2">
-                          <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <div className="w-3.5 h-3.5 rounded-full bg-[#1c1c1e] flex items-center justify-center mt-0.5">
+                        <svg viewBox="0 0 10 8" fill="none" className="w-1.5 h-1.5">
+                          <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                       </div>
                     )}
@@ -1138,16 +1124,17 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
             })}
           </div>
 
-          {/* Zoom range */}
-          <p className={sectionHeader} style={{ color: t.textTertiary }}>{tr('startZoom')}</p>
-          <div className="flex items-center gap-3">
-            <input
-              type="range" min="3" max="18" step="1" value={defaultZoom}
-              onChange={e => onSettingsChange({ defaultZoom: parseInt(e.target.value) })}
-              className="flex-1 cursor-default"
-            />
-            <span className="text-sm font-semibold w-6 text-right" style={{ color: t.textPrimary }}>{defaultZoom}</span>
+          {/* Zoom */}
+          <div style={{ ...row, marginBottom: 8 }}>
+            <p className="text-[11px] font-medium" style={{ color: t.textSecondary }}>{tr('startZoom')}</p>
+            <span className="text-[13px] font-semibold tabular-nums" style={{ color: t.textPrimary }}>{defaultZoom}</span>
           </div>
+          <input
+            type="range" min="3" max="18" step="1" value={defaultZoom}
+            onChange={e => onSettingsChange({ defaultZoom: parseInt(e.target.value) })}
+            className="w-full cursor-default"
+            style={{ accentColor: '#1c1c1e' }}
+          />
         </div>
 
       </div>
