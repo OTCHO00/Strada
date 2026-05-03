@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import API from './api.js';
 import { X, ChevronDown, Plus } from 'lucide-react';
 import { makeGlassStyle, getTheme, GRAIN_SVG } from './theme.js';
@@ -25,6 +25,94 @@ function BottomPlanner({ isVisible, isClosing, onClose, itinerary, itineraries, 
   const [dragOverDay, setDragOverDay] = useState(null);
   const [dragOverPool, setDragOverPool] = useState(false);
   const [poolCollapsed, setPoolCollapsed] = useState(false);
+
+  // ── Slide gesture ─────────────────────────────────────────────
+  const panelRef   = useRef(null);
+  const dragState  = useRef(null);
+  const snappedRef = useRef(false); // pas de state React → zéro re-render pendant le snap
+
+  const SKIP = 'button, [draggable="true"], input, select, textarea, a';
+  const SNAP_TRANSITION = 'transform 460ms cubic-bezier(0.32, 0.72, 0, 1)';
+
+  // Quand le panel disparaît, on remet tout à zéro
+  useEffect(() => {
+    if (!isVisible) {
+      const el = panelRef.current;
+      if (el) { el.style.transform = ''; el.style.transition = ''; el.style.cursor = ''; }
+      snappedRef.current = false;
+    }
+  }, [isVisible]);
+
+  const onMouseDown = (e) => {
+    const el = panelRef.current;
+    if (!el) return;
+
+    // Panel snappé → n'importe quel clic le restaure
+    if (snappedRef.current) {
+      snappedRef.current = false;
+      el.style.transition = SNAP_TRANSITION;
+      el.style.transform   = 'translate(0,0)';
+      el.style.cursor      = '';
+      return;
+    }
+
+    if (e.target.closest(SKIP)) return;
+    e.preventDefault();
+
+    dragState.current = { startX: e.clientX, startY: e.clientY };
+    el.style.animation  = 'none'; // annule la CSS animation qui bloquerait les transforms inline
+    el.style.transition = 'none';
+    el.style.cursor     = 'grabbing';
+    document.body.style.cursor = 'grabbing';
+
+    const onMove = (ev) => {
+      const dx = ev.clientX - dragState.current.startX;
+      const dy = ev.clientY - dragState.current.startY;
+      dragState.current.dx = dx;
+      dragState.current.dy = dy;
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+    };
+
+    const onUp = () => {
+      const { dx = 0, dy = 0 } = dragState.current || {};
+      const adx = Math.abs(dx);
+      const ady = Math.abs(dy);
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      dragState.current = null;
+
+      const THRESHOLD = 40;
+      const vw = window.innerWidth;
+
+      el.style.transition = SNAP_TRANSITION;
+
+      if (adx > ady && adx > THRESHOLD) {
+        // Snap horizontal
+        snappedRef.current = true;
+        el.style.cursor = 'pointer';
+        if (dx > 0) {
+          // → bord droit : bord gauche du panel à vw-20
+          el.style.transform = `translateX(${vw - 32}px)`;
+        } else {
+          // → bord gauche : bord droit du panel à 20px
+          el.style.transform = `translateX(${328 - vw}px)`;
+        }
+      } else if (dy > adx && dy > THRESHOLD) {
+        // Snap bas : 20px visible en bas
+        snappedRef.current = true;
+        el.style.cursor    = 'pointer';
+        el.style.transform = `translateY(${el.offsetHeight - 20}px)`;
+      } else {
+        // Retour en place
+        el.style.transform = 'translate(0,0)';
+        el.style.cursor    = '';
+      }
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
 
   useEffect(() => {
     if (!itinerary) return;
@@ -105,8 +193,12 @@ function BottomPlanner({ isVisible, isClosing, onClose, itinerary, itineraries, 
 
   return (
     <div
-      className={`fixed z-[60] flex flex-col ${isClosing ? 'planner-slide-out' : 'planner-slide-in'}`}
-      style={{ bottom: 24, left: 12, right: 308, height, minHeight: 280, borderRadius: 20, transition: 'height 280ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+      ref={panelRef}
+      className={`fixed z-[60] flex flex-col planner-grab ${isClosing ? 'planner-slide-out' : 'planner-slide-in'}`}
+      onMouseDown={onMouseDown}
+      style={{
+        bottom: 24, left: 12, right: 308, height, minHeight: 280, borderRadius: 20,
+      }}
     >
       {/* Glass shell */}
       <div className="absolute inset-0 pointer-events-none" style={{ ...makeGlassStyle(settings.sidebarColor, 0.82), borderRadius: 20 }} />

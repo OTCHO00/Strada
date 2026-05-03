@@ -94,6 +94,12 @@ body {
 .star-burst  { animation: starBurst 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .star-pop    { animation: starPop   0.30s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
+/* ── Bottom Planner grab cursor ─────────────────────────────── */
+.planner-grab,
+.planner-grab * { cursor: grab; }
+.planner-grab button,
+.planner-grab [draggable="true"] { cursor: default; }
+
 /* ── Button press feedback ───────────────────────────────────── */
 .btn-press {
   transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -124,27 +130,39 @@ body {
 
 /* ── Bottom Planner ──────────────────────────────────────────── */
 @keyframes plannerSlideUp {
-  from { transform: translateY(110%); }
-  to   { transform: translateY(0); }
+  from { transform: translateY(110%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
 }
 @keyframes plannerSlideDown {
-  from { transform: translateY(0); }
-  to   { transform: translateY(110%); }
+  from { transform: translateY(0);    opacity: 1; }
+  to   { transform: translateY(110%); opacity: 0; }
 }
-.planner-slide-in  { animation: plannerSlideUp   1.1s cubic-bezier(0.32, 0.72, 0, 1) both; }
-.planner-slide-out { animation: plannerSlideDown 0.55s cubic-bezier(0.4,  0,    1, 1) both; }
+.planner-slide-in  { animation: plannerSlideUp   1.1s cubic-bezier(0.32, 0.72, 0, 1) backwards; }
+.planner-slide-out { animation: plannerSlideDown 0.5s  cubic-bezier(0.4,  0,    1, 1) both; }
 
 /* ── Panels Container ────────────────────────────────────────── */
 @keyframes panelsSlideUp {
-  from { transform: translateY(120px); }
-  to   { transform: translateY(0); }
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
 }
 @keyframes panelsSlideDown {
-  from { transform: translateY(0); }
-  to   { transform: translateY(80px); }
+  from { transform: translateY(0);    opacity: 1; }
+  to   { transform: translateY(100%); opacity: 0; }
 }
 .panels-slide-in  { animation: panelsSlideUp   1.1s cubic-bezier(0.32, 0.72, 0, 1) both; }
-.panels-slide-out { animation: panelsSlideDown 0.55s cubic-bezier(0.4,  0,    1, 1) both; }
+.panels-slide-out { animation: panelsSlideDown 0.5s  cubic-bezier(0.4,  0,    1, 1) both; }
+
+/* ── Modal fade out ──────────────────────────────────────────── */
+@keyframes modalFadeOut {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.97); }
+}
+@keyframes backdropFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.modal-closing        { animation: modalFadeOut   200ms cubic-bezier(0.4, 0, 1, 1) both; }
+.backdrop-closing     { animation: backdropFadeOut 200ms cubic-bezier(0.4, 0, 1, 1) both; }
 
 /* ── Nav item stagger ────────────────────────────────────────── */
 @keyframes navFadeIn {

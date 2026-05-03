@@ -5,6 +5,12 @@ import { X, MapPin } from 'lucide-react';
 function SelectItineraryModal({ poi, itineraries, onSelect, onClose }) {
   const [plans, setPlans] = useState({});
   const [loading, setLoading] = useState(true);
+  const [closing, setClosing] = useState(false);
+
+  const handleClose = () => {
+    setClosing(true);
+    setTimeout(onClose, 200);
+  };
 
   useEffect(() => {
     const loadPlans = async () => {
@@ -26,9 +32,9 @@ function SelectItineraryModal({ poi, itineraries, onSelect, onClose }) {
   if (!poi) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 fade-in">
+    <div className={`fixed inset-0 bg-black/20 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 ${closing ? 'backdrop-closing' : 'fade-in'}`}>
       <div
-        className="bg-white border border-[#e5e5ea] rounded-2xl max-w-sm w-full overflow-hidden scale-in"
+        className={`bg-white border border-[#e5e5ea] rounded-2xl max-w-sm w-full overflow-hidden ${closing ? 'modal-closing' : 'scale-in'}`}
         style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.14)' }}
       >
         {/* Header */}
@@ -38,7 +44,7 @@ function SelectItineraryModal({ poi, itineraries, onSelect, onClose }) {
             <p className="text-xs text-[#aeaeb2] mt-0.5 truncate">{poi.name}</p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-[#aeaeb2] hover:bg-[#f2f2f5] hover:text-[#1c1c1e] transition-colors flex-shrink-0"
           >
             <X style={{ width: 14, height: 14 }} />
