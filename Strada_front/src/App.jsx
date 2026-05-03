@@ -21,19 +21,20 @@ const getTripColor = (itineraries, id) => {
 // Cache en mémoire pour les routes Directions (session uniquement)
 const routeCache = new globalThis.Map();
 
-// ── Google Directions via backend proxy (vélo + marche) ──────────────
-async function fetchGoogleRoute(mode, waypoints) {
-  if (waypoints.length < 2) return null;
+// ── Mapbox Directions (vélo + marche) ────────────────────────────────
+async function fetchMapboxRoute(mode, waypoints, token) {
+  if (waypoints.length < 2 || !token) return null;
   try {
-    const res = await fetch(`${API}/directions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode, waypoints }),
-    });
+    const profile = mode === 'cycling' ? 'cycling' : 'walking';
+    const coords  = waypoints.map(w => `${w.lng},${w.lat}`).join(';');
+    const res = await fetch(
+      `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coords}?geometries=geojson&overview=full&access_token=${token}`
+    );
     if (!res.ok) return null;
-    const data = await res.json();
-    const points = decodePolyline(data.polyline);
-    return { geojson: { type: 'LineString', coordinates: points }, duration: data.duration, distance: data.distance };
+    const data  = res.json ? await res.json() : null;
+    const route = data?.routes?.[0];
+    if (!route) return null;
+    return { geojson: route.geometry, duration: route.duration, distance: route.distance };
   } catch (e) { console.error(`[Directions] ${mode} error`, e); return null; }
 }
 
@@ -126,7 +127,7 @@ function App() {
       setMultiDayRoutes({});
       setMapMarkers([]);
       setRouteDurations({});
-    }, 600);
+    }, 520);
   };
 
   // ── Route state ───────────────────────────────────────────────
@@ -383,8 +384,8 @@ function App() {
 
           const [drivingRes, cyclingRoute, walkingRoute] = await Promise.all([
             fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
-            fetchGoogleRoute('cycling', waypoints),
-            fetchGoogleRoute('walking', waypoints),
+            fetchMapboxRoute('cycling', waypoints, mapboxToken),
+            fetchMapboxRoute('walking', waypoints, mapboxToken),
           ]);
           if (!drivingRes.ok) return;
           const drivingData = await drivingRes.json();
