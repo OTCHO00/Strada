@@ -188,7 +188,7 @@ function PoiCard({ poi, onClose, onAddToTrip, onAddToFavorites, onRemoveFromFavo
   const handleFavoriteClick = async () => {
     setStarKey(k => k + 1);
     if (isFavorited) await onRemoveFromFavorites?.(existingFav.id);
-    else await onAddToFavorites?.(poi);
+    else await onAddToFavorites?.({ ...poi, address: placeInfo?.address ?? null });
   };
 
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;

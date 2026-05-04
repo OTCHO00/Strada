@@ -38,6 +38,20 @@ async function fetchMapboxRoute(mode, waypoints, token) {
   } catch (e) { console.error(`[Directions] ${mode} error`, e); return null; }
 }
 
+async function fetchSegmentRoute(mode, fromPoi, toPoi, token) {
+  if (mode === 'flying' || !token) return null;
+  try {
+    const profile = mode === 'cycling' ? 'cycling' : mode === 'walking' ? 'walking' : 'driving';
+    const coords = `${fromPoi.longitude},${fromPoi.latitude};${toPoi.longitude},${toPoi.latitude}`;
+    const res = await fetch(
+      `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coords}?geometries=geojson&overview=full&access_token=${token}`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.routes?.[0] || null;
+  } catch (e) { console.error(`[Segment] ${mode} error`, e); return null; }
+}
+
 function decodePolyline(encoded) {
   const coords = [];
   let index = 0, lat = 0, lng = 0;
@@ -267,19 +281,20 @@ function App() {
   // ── POI handlers ──────────────────────────────────────────────
   const handleAddToTrip = () => setShowItineraryModal(true);
 
-  const handleAddToFavorites = async () => {
+  const handleAddToFavorites = async (poiData) => {
+    const poi = poiData || selectedPoi;
     try {
       const res = await fetch(`${API}/favorites`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nom: selectedPoi.name,
-          category: selectedPoi.category,
-          latitude: selectedPoi.coordinates.lat,
-          longitude: selectedPoi.coordinates.lng,
+          nom: poi.name,
+          category: poi.category,
+          latitude: poi.coordinates.lat,
+          longitude: poi.coordinates.lng,
           continent: null,
           source_url: null,
-          properties: selectedPoi.properties || {}
+          properties: { ...(poi.properties || {}), address: poi.address ?? null },
         })
       });
       if (!res.ok) throw new Error('Erreur API favoris');
@@ -365,7 +380,6 @@ function App() {
     await Promise.all(activeDays.map(async (day) => {
       const dayPois = poisToUse.filter(p => p.day === day).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
       if (dayPois.length < 2) return;
-      const coords = dayPois.map(p => `${p.longitude},${p.latitude}`).join(';');
 
       const totalDistanceKm = dayPois.reduce((acc, poi, i) => {
         if (i === 0) return acc;
@@ -376,42 +390,86 @@ function App() {
         const a = Math.sin(dLat / 2) ** 2 + Math.cos(prev.latitude * Math.PI / 180) * Math.cos(poi.latitude * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
         return acc + R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       }, 0);
-
-      // Cache par coordonnées — évite de refaire les appels si le trajet n'a pas changé
-      let routeResult = routeCache.get(coords);
-      if (!routeResult) {
-        try {
-          const waypoints = dayPois.map(p => ({ lat: p.latitude, lng: p.longitude }));
-
-          const [drivingRes, cyclingRoute, walkingRoute] = await Promise.all([
-            fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
-            fetchMapboxRoute('cycling', waypoints, mapboxToken),
-            fetchMapboxRoute('walking', waypoints, mapboxToken),
-          ]);
-          if (!drivingRes.ok) return;
-          const drivingData = await drivingRes.json();
-          routeResult = {
-            driving: drivingData?.routes?.[0],
-            cycling: cyclingRoute,
-            walking: walkingRoute,
-          };
-          routeCache.set(coords, routeResult);
-        } catch (e) {
-          console.error('Erreur Directions API:', e);
-          return;
-        }
-      }
-      const { driving, cycling, walking } = routeResult;
-      if (!driving?.geometry) return;
-
       const flightDurationSeconds = Math.round((totalDistanceKm / 800) * 3600 + 1800);
-      newRoutes[day] = {
-        geojson: { type: 'Feature', properties: { day }, geometry: driving.geometry },
-        driving: { duration: driving.duration, distance: driving.distance },
-        cycling: cycling ? { duration: cycling.duration, distance: cycling.distance, geojson: { type: 'Feature', properties: { day }, geometry: cycling.geojson } } : null,
-        walking: walking ? { duration: walking.duration, distance: walking.distance, geojson: { type: 'Feature', properties: { day }, geometry: walking.geojson } } : null,
-        flying: { duration: flightDurationSeconds, distance: Math.round(totalDistanceKm * 1000) },
-      };
+
+      // Detect per-segment mixed modes (pois[1..n] each can have an explicit travel_mode)
+      const hasMixedModes = dayPois.slice(1).some(p => p.travel_mode && p.travel_mode !== mode);
+
+      if (hasMixedModes) {
+        // ── Per-segment calculation ──────────────────────────────
+        const segResults = await Promise.all(
+          dayPois.slice(1).map((toPoi, i) => {
+            const fromPoi = dayPois[i];
+            const segMode = toPoi.travel_mode || mode;
+            if (segMode === 'flying') {
+              return Promise.resolve({ geometry: { type: 'LineString', coordinates: [[fromPoi.longitude, fromPoi.latitude], [toPoi.longitude, toPoi.latitude]] }, duration: 0, distance: 0 });
+            }
+            return fetchSegmentRoute(segMode, fromPoi, toPoi, mapboxToken);
+          })
+        );
+
+        // Combine all segment coordinates into one LineString
+        const allCoords = [];
+        let totalDuration = 0, totalDistance = 0;
+        segResults.forEach(route => {
+          const coords = route?.geometry?.coordinates;
+          if (coords?.length) {
+            // Avoid duplicate junction point between segments
+            allCoords.push(...(allCoords.length > 0 ? coords.slice(1) : coords));
+          }
+          totalDuration += route?.duration || 0;
+          totalDistance += route?.distance || 0;
+        });
+
+        if (allCoords.length < 2) return;
+        const combinedGeometry = { type: 'LineString', coordinates: allCoords };
+        newRoutes[day] = {
+          geojson: { type: 'Feature', properties: { day }, geometry: combinedGeometry },
+          driving: { duration: totalDuration, distance: totalDistance },
+          cycling: { duration: totalDuration, distance: totalDistance, geojson: { type: 'Feature', properties: { day }, geometry: combinedGeometry } },
+          walking: { duration: totalDuration, distance: totalDistance, geojson: { type: 'Feature', properties: { day }, geometry: combinedGeometry } },
+          flying: { duration: flightDurationSeconds, distance: Math.round(totalDistanceKm * 1000) },
+          isMixed: true,
+        };
+      } else {
+        // ── Standard batch calculation ───────────────────────────
+        const coords = dayPois.map(p => `${p.longitude},${p.latitude}`).join(';');
+
+        // Cache par coordonnées — évite de refaire les appels si le trajet n'a pas changé
+        let routeResult = routeCache.get(coords);
+        if (!routeResult) {
+          try {
+            const waypoints = dayPois.map(p => ({ lat: p.latitude, lng: p.longitude }));
+
+            const [drivingRes, cyclingRoute, walkingRoute] = await Promise.all([
+              fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&overview=full&access_token=${mapboxToken}`),
+              fetchMapboxRoute('cycling', waypoints, mapboxToken),
+              fetchMapboxRoute('walking', waypoints, mapboxToken),
+            ]);
+            if (!drivingRes.ok) return;
+            const drivingData = await drivingRes.json();
+            routeResult = {
+              driving: drivingData?.routes?.[0],
+              cycling: cyclingRoute,
+              walking: walkingRoute,
+            };
+            routeCache.set(coords, routeResult);
+          } catch (e) {
+            console.error('Erreur Directions API:', e);
+            return;
+          }
+        }
+        const { driving, cycling, walking } = routeResult;
+        if (!driving?.geometry) return;
+
+        newRoutes[day] = {
+          geojson: { type: 'Feature', properties: { day }, geometry: driving.geometry },
+          driving: { duration: driving.duration, distance: driving.distance },
+          cycling: cycling ? { duration: cycling.duration, distance: cycling.distance, geojson: { type: 'Feature', properties: { day }, geometry: cycling.geojson } } : null,
+          walking: walking ? { duration: walking.duration, distance: walking.distance, geojson: { type: 'Feature', properties: { day }, geometry: walking.geojson } } : null,
+          flying: { duration: flightDurationSeconds, distance: Math.round(totalDistanceKm * 1000) },
+        };
+      }
     }));
 
     const newDurations = {};
@@ -424,11 +482,15 @@ function App() {
       const route = newRoutes[day];
       if (!route) return null;
       const color = getDayColor(day);
+      // Per-segment mixed route: always use the pre-combined geometry
+      if (route.isMixed) {
+        return { ...route.geojson, properties: { day, color } };
+      }
       if (dm === 'flying') {
         const dayPois = poisToUse.filter(p => p.day === day).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
         return { type: 'Feature', properties: { day, color }, geometry: { type: 'LineString', coordinates: dayPois.map(p => [p.longitude, p.latitude]) } };
       }
-      // Vélo/marche → GeoJSON Google si dispo, sinon fallback Mapbox (driving)
+      // Vélo/marche → GeoJSON si dispo, sinon fallback Mapbox (driving)
       if ((dm === 'cycling' && route.cycling?.geojson) || (dm === 'walking' && route.walking?.geojson)) {
         const googleGeojson = dm === 'cycling' ? route.cycling.geojson : route.walking.geojson;
         return { ...googleGeojson, properties: { day, color } };

@@ -3,6 +3,7 @@ import API from './api.js';
 import { X, Star, MapPin, Plus, Trash2, ChevronDown, Calendar, Search, Pencil, Check } from 'lucide-react';
 import { makeGlassStyle, getTheme, GRAIN_SVG } from './theme.js';
 import { useT } from './translations.js';
+import SelectItineraryModal from './SelectItineraryModal.jsx';
 
 // ── Helpers ───────────────────────────────────────────────────────────
 const PALETTE = ['#5856d6','#34aadc','#30b0c7','#34c759','#ff9500','#af52de','#ff2d55','#5ac8fa','#ff6b35','#32ade6'];
@@ -219,110 +220,170 @@ function SearchPanel({ isVisible, isClosing, onClose, onPlaceSelect, mapboxToken
 }
 
 // ── FavoritesPanel ────────────────────────────────────────────────────
-function FavoritesPanel({ isVisible, isClosing, onClose, favorites, setFavorites, onPlaceSelect, settings = {} }) {
-  const t = getTheme(settings.sidebarColor);
+function FavoritesPanel({ isVisible, isClosing, onClose, favorites, setFavorites, onPlaceSelect, itineraries = [], mapboxToken, settings = {} }) {
+  const t  = getTheme(settings.sidebarColor);
   const tr = useT(settings.language);
   const [deletingId, setDeletingId] = useState(null);
+  const [favToAdd,   setFavToAdd]   = useState(null);
+  const [addresses,  setAddresses]  = useState({});  // { favId: "adresse..." }
+
+  // Reverse geocode les favoris sans adresse dès que le panel s'ouvre
+  useEffect(() => {
+    if (!isVisible || !mapboxToken) return;
+    const missing = favorites.filter(f => !f.properties?.address && !addresses[f.id] && f.latitude && f.longitude);
+    if (missing.length === 0) return;
+    missing.forEach(async (fav) => {
+      try {
+        const res  = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${fav.longitude},${fav.latitude}.json?types=address,place&limit=1&access_token=${mapboxToken}`);
+        const data = await res.json();
+        const addr = data.features?.[0]?.place_name;
+        if (addr) setAddresses(prev => ({ ...prev, [fav.id]: addr }));
+      } catch { /* ignore */ }
+    });
+  }, [isVisible, favorites]);
 
   const handleDeleteFavorite = async (favId) => {
     try {
       setDeletingId(favId);
-      const response = await fetch(`${API}/favorites/${favId}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error(`Erreur: ${response.status}`);
-      setFavorites((prev) => prev.filter((f) => f.id !== favId));
-    } catch (error) {
-      console.error('Erreur suppression favori:', error);
-      alert('Erreur lors de la suppression du favori.');
+      const res = await fetch(`${API}/favorites/${favId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`Erreur: ${res.status}`);
+      setFavorites(prev => prev.filter(f => f.id !== favId));
+    } catch (err) {
+      console.error('Erreur suppression favori:', err);
     } finally {
       setDeletingId(null);
     }
   };
 
+  const handleAddToTrip = async (itinerary) => {
+    if (!favToAdd) return;
+    try {
+      await fetch(`${API}/itineraire/${itinerary.id}/poi`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nom: favToAdd.nom || favToAdd.name,
+          category: favToAdd.category,
+          latitude: favToAdd.latitude,
+          longitude: favToAdd.longitude,
+          properties: {}, day: null, position: null, favorite_id: favToAdd.id, travel_mode: null,
+        }),
+      });
+    } catch (err) { console.error('Erreur ajout au voyage:', err); }
+    setFavToAdd(null);
+  };
+
   if (!isVisible && !isClosing) return null;
 
   return (
-    <GlassPanel settings={settings} className={otherPanelsCls} isClosing={isClosing}>
-      {/* Header */}
-      <div className={panelHeader} style={{ borderBottom: `1px solid ${t.divider}` }}>
-        <div>
-          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>{tr('favorites')}</p>
-          <p className="text-xs mt-0.5" style={{ color: t.textTertiary }}>
-            {favorites.length === 0 ? tr('favoritesNone') : `${favorites.length} ${favorites.length > 1 ? tr('favoris') : tr('favori')}`}
-          </p>
+    <>
+      <GlassPanel settings={settings} className={otherPanelsCls} isClosing={isClosing}>
+        {/* Header */}
+        <div className={panelHeader} style={{ borderBottom: `1px solid ${t.divider}` }}>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>{tr('favoritesTitle')}</p>
+            {favorites.length > 0 && (
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: t.inputBg, color: t.textSecondary }}>
+                {favorites.length}
+              </span>
+            )}
+          </div>
+          <button onClick={onClose} className={closeBtn} style={{ background: t.closeBtnBg, color: t.closeBtnColor }}>
+            <X style={{ width: 15, height: 15 }} />
+          </button>
         </div>
-        <button onClick={onClose} className={closeBtn} style={{ background: t.closeBtnBg, color: t.closeBtnColor }}>
-          <X style={{ width: 15, height: 15 }} />
-        </button>
-      </div>
 
-      {/* List */}
-      <div className="flex-1 overflow-y-auto">
-        {favorites.length === 0 ? (
-          <div className={emptyState}>
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: t.inputBg }}>
-              <Star style={{ width: 22, height: 22, color: t.textTertiary }} />
-            </div>
-            <div>
-              <p className="text-sm font-medium" style={{ color: t.textSecondary }}>{tr('favoritesNone')}</p>
-              <p className="text-xs mt-1" style={{ color: t.textTertiary }}>{tr('favoritesEmptySub')}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="p-4 space-y-2">
-            {favorites.map((fav, idx) => (
-              <div
-                key={fav.id}
-                className="group rounded-2xl overflow-hidden fade-up"
-                style={{ background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', animationDelay: `${idx * 40}ms` }}
-              >
-                {/* Top row */}
-                <div className="flex items-start gap-3 p-4">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: t.inputBg }}>
-                    <Star style={{ width: 15, height: 15, color: t.textSecondary }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: t.textPrimary }}>{fav.nom || fav.name}</p>
-                    {fav.category && (
-                      <span className="inline-block mt-1 text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ color: t.textSecondary, background: t.inputBg }}>
-                        {formatCategory(fav.category)}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleDeleteFavorite(fav.id)}
-                    disabled={deletingId === fav.id}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
-                    style={{ color: t.textTertiary }}
-                  >
-                    {deletingId === fav.id
-                      ? <div className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin" />
-                      : <Trash2 style={{ width: 13, height: 13 }} />}
-                  </button>
-                </div>
-
-                {/* Footer action */}
-                <div className="px-4 py-2.5" style={{ borderTop: `1px solid ${t.divider}` }}>
-                  <button
-                    onClick={() => {
-                      if (fav.latitude && fav.longitude) {
-                        onPlaceSelect({ lng: fav.longitude, lat: fav.latitude, name: fav.nom || fav.name });
-                        onClose();
-                      }
-                    }}
-                    disabled={!fav.latitude || !fav.longitude}
-                    className="btn-press flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-40 cursor-default focus:outline-none"
-                    style={{ color: t.textSecondary }}
-                  >
-                    <MapPin style={{ width: 11, height: 11 }} />
-                    {tr('seeOnMap')}
-                  </button>
-                </div>
+        {/* List */}
+        <div className="flex-1 overflow-y-auto">
+          {favorites.length === 0 ? (
+            <div className={emptyState}>
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: t.inputBg }}>
+                <Star style={{ width: 22, height: 22, color: t.textTertiary }} />
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </GlassPanel>
+              <div>
+                <p className="text-sm font-medium" style={{ color: t.textSecondary }}>{tr('favoritesNone')}</p>
+                <p className="text-xs mt-1" style={{ color: t.textTertiary }}>{tr('favoritesEmptySub')}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 flex flex-col gap-3">
+              {favorites.map((fav, idx) => (
+                <div
+                  key={fav.id}
+                  className="group rounded-2xl fade-up"
+                  style={{ background: 'rgba(255,255,255,0.60)', border: '1px solid rgba(255,255,255,0.55)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', animationDelay: `${idx * 40}ms` }}
+                >
+                  {/* Main info */}
+                  <div className="p-4 pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[15px] font-semibold leading-snug truncate" style={{ color: t.textPrimary }}>
+                          {fav.nom || fav.name}
+                        </p>
+                        {(fav.properties?.address || addresses[fav.id]) ? (
+                          <p className="mt-1 text-[12px] leading-snug line-clamp-2" style={{ color: t.textSecondary }}>
+                            {fav.properties?.address || addresses[fav.id]}
+                          </p>
+                        ) : !addresses[fav.id] && (
+                          <p className="mt-1 text-[12px]" style={{ color: t.textTertiary }}>…</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleDeleteFavorite(fav.id)}
+                        disabled={deletingId === fav.id}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all cursor-default focus:outline-none"
+                        style={{ color: t.textTertiary }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = '#fef2f2'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = t.textTertiary; e.currentTarget.style.background = ''; }}
+                      >
+                        {deletingId === fav.id
+                          ? <div className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin" />
+                          : <Trash2 style={{ width: 12, height: 12 }} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="px-3 pb-3 flex gap-2">
+                    <button
+                      onClick={() => { if (fav.latitude && fav.longitude) { onPlaceSelect({ lng: fav.longitude, lat: fav.latitude, name: fav.nom || fav.name }); onClose(); } }}
+                      disabled={!fav.latitude || !fav.longitude}
+                      className="btn-press flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-medium cursor-default focus:outline-none disabled:opacity-40"
+                      style={{ background: t.inputBg, color: t.textSecondary }}
+                      onMouseEnter={e => { e.currentTarget.style.background = t.dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = t.inputBg; }}
+                    >
+                      <MapPin style={{ width: 11, height: 11 }} />
+                      {tr('seeOnMap')}
+                    </button>
+                    <button
+                      onClick={() => setFavToAdd(fav)}
+                      className="btn-press flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-medium cursor-default focus:outline-none"
+                      style={{ background: '#1c1c1e', color: 'white' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#333'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#1c1c1e'; }}
+                    >
+                      <Plus style={{ width: 11, height: 11 }} />
+                      {tr('addToTrip')}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </GlassPanel>
+
+      {/* Modal sélection voyage */}
+      {favToAdd && (
+        <SelectItineraryModal
+          poi={{ name: favToAdd.nom || favToAdd.name }}
+          itineraries={itineraries}
+          onSelect={handleAddToTrip}
+          onClose={() => setFavToAdd(null)}
+        />
+      )}
+    </>
   );
 }
 
@@ -411,11 +472,13 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
     <GlassPanel settings={settings} className={otherPanelsCls} isClosing={isClosing}>
       {/* Header */}
       <div className={panelHeader} style={{ borderBottom: `1px solid ${t.divider}` }}>
-        <div>
-          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>{tr('trips')}</p>
-          <p className="text-xs mt-0.5" style={{ color: t.textTertiary }}>
-            {itineraries.length === 0 ? tr('tripsNone') : `${itineraries.length} ${itineraries.length > 1 ? tr('voyages') : tr('voyage')}`}
-          </p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>{tr('tripsTitle')}</p>
+          {itineraries.length > 0 && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: t.inputBg, color: t.textSecondary }}>
+              {itineraries.length}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {!showForm && (
@@ -688,11 +751,13 @@ function OrganizePanel({ isVisible, isClosing, onClose, itineraries, onOpenPlann
 
       {/* Header */}
       <div className={panelHeader} style={{ borderBottom: `1px solid ${t.divider}` }}>
-        <div>
+        <div className="flex items-center gap-2">
           <p className="text-sm font-semibold" style={{ color: t.textPrimary }}>{tr('organize')}</p>
-          <p className="text-xs mt-0.5" style={{ color: t.textTertiary }}>
-            {itineraries.length === 0 ? tr('tripsNone') : `${itineraries.length} ${itineraries.length > 1 ? tr('voyages') : tr('voyage')}`}
-          </p>
+          {itineraries.length > 0 && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: t.inputBg, color: t.textSecondary }}>
+              {itineraries.length}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -802,51 +867,26 @@ function OrganizePanel({ isVisible, isClosing, onClose, itineraries, onOpenPlann
                           cursor: 'grab',
                         }}
                       >
-                        <div className="flex items-center gap-3 p-3.5">
+                        <div className="flex items-center gap-3 px-4 py-4">
                           {/* Color accent */}
-                          <div className="w-2 self-stretch rounded-full flex-shrink-0" style={{ background: tc }} />
+                          <div className="w-1.5 self-stretch rounded-full flex-shrink-0" style={{ background: tc }} />
 
                           {/* Info */}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate" style={{ color: t.textPrimary }}>{trip.nom || tr('unnamedTrip')}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5 relative">
-                              <span className="text-[11px]" style={{ color: t.textTertiary }}>{trip.nb_jours}j</span>
-                              {/* Category tag */}
-                              <button
-                                onClick={e => { e.stopPropagation(); setOpenCatMenu(openCatMenu === trip.id ? null : trip.id); }}
-                                className="text-[10px] px-1.5 py-0.5 rounded-full cursor-default focus:outline-none transition-colors"
-                                style={{ background: catName ? tc + '25' : t.inputBg, color: catName ? tc : t.textTertiary }}
-                              >
-                                {catName || '+ tag'}
-                              </button>
-                              {/* Category dropdown */}
-                              {openCatMenu === trip.id && (
-                                <div
-                                  className="absolute left-0 top-full mt-1 rounded-xl overflow-hidden z-20 fade-up"
-                                  style={{ background: t.dark ? 'rgba(30,30,46,0.98)' : 'rgba(248,248,252,0.98)', backdropFilter: 'blur(20px)', border: `1px solid ${t.divider}`, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 150 }}
-                                >
-                                  {[{ id: null, name: tr('noCategory') }, ...orgData.categories].map(c => (
-                                    <button
-                                      key={c.id || 'none'}
-                                      onClick={() => handleAssignCat(trip.id, c.id)}
-                                      className="w-full text-left px-3 py-2 text-[11px] cursor-default focus:outline-none"
-                                      style={{ color: c.id ? t.textPrimary : t.textTertiary }}
-                                      onMouseEnter={e => { if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) e.currentTarget.style.background = t.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'; }}
-                                      onMouseLeave={e => { e.currentTarget.style.background = ''; }}
-                                    >
-                                      {c.name}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                            <p className="text-[15px] font-semibold truncate leading-snug" style={{ color: t.textPrimary }}>{trip.nom || tr('unnamedTrip')}</p>
+                            <span
+                              className="inline-block mt-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                              style={{ background: tc + '22', color: tc }}
+                            >
+                              {trip.nb_jours} jour{trip.nb_jours > 1 ? 's' : ''}
+                            </span>
                           </div>
 
                           {/* GO! button */}
                           <button
                             onClick={() => { onClose(); onOpenPlanner?.(trip); }}
-                            className="btn-press flex items-center px-3.5 py-2 text-white text-xs font-bold rounded-xl cursor-default focus:outline-none flex-shrink-0"
-                            style={{ background: tc, boxShadow: `0 2px 10px ${tc}60`, transition: 'transform 160ms cubic-bezier(0.16,1,0.3,1), opacity 160ms ease-out' }}
+                            className="btn-press flex items-center px-4 py-2 text-white text-xs font-bold rounded-xl cursor-default focus:outline-none flex-shrink-0"
+                            style={{ background: tc, boxShadow: `0 2px 10px ${tc}50`, transition: 'transform 160ms cubic-bezier(0.16,1,0.3,1)' }}
                           >
                             {tr('go')}
                           </button>
@@ -1010,7 +1050,9 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
             <div style={{ ...row, marginBottom: 8 }}>
               <p className="text-[11px] font-medium" style={{ color: t.textSecondary }}>{tr('searchRadius')}</p>
               <span className="text-[11px] font-semibold" style={{ color: t.textTertiary }}>
-                {searchRadius >= 1000 ? `${searchRadius / 1000} km` : `${searchRadius} m`}
+                {units === 'miles'
+                  ? `${(searchRadius / 1609.34).toFixed(1)} mi`
+                  : searchRadius >= 1000 ? `${searchRadius / 1000} km` : `${searchRadius} m`}
               </span>
             </div>
             <div className="flex gap-1.5">
@@ -1019,7 +1061,9 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
                   className="btn-press flex-1 py-1.5 rounded-xl text-[11px] font-medium cursor-default focus:outline-none"
                   style={searchRadius === r ? { background: '#1c1c1e', color: 'white', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }
                     : { background: t.inputBg, color: t.textSecondary }}>
-                  {r >= 1000 ? `${r / 1000}km` : `${r}m`}
+                  {units === 'miles'
+                    ? `${(r / 1609.34).toFixed(1)}mi`
+                    : r >= 1000 ? `${r / 1000}km` : `${r}m`}
                 </button>
               ))}
             </div>
@@ -1028,7 +1072,7 @@ function SettingsPanel({ isVisible, isClosing, onClose, settings = {}, onSetting
 
         {/* ══ Card 2 — Apparence ════════════════════════════════════ */}
         <div style={cardStyle}>
-          <p style={cardTitle}>{tr('appearance')}</p>
+          <p style={cardTitle}>{tr('appearanceSection')}</p>
 
           {/* Swatches */}
           <div className="grid grid-cols-7 gap-2 mb-4">
@@ -1147,7 +1191,7 @@ function RightPanel({ searchOpen, favoritesOpen, tripsOpen, organizeOpen, settin
   return (
     <>
       <SearchPanel   isVisible={searchOpen}    isClosing={closingPanel === 'search'}   onClose={onCloseSearch} onPlaceSelect={onPlaceSelect} mapboxToken={mapboxToken} settings={settings} />
-      <FavoritesPanel isVisible={favoritesOpen} isClosing={closingPanel === 'favorites'} onClose={onCloseAll} favorites={favorites} setFavorites={setFavorites} onPlaceSelect={onPlaceSelect} settings={settings} />
+      <FavoritesPanel isVisible={favoritesOpen} isClosing={closingPanel === 'favorites'} onClose={onCloseAll} favorites={favorites} setFavorites={setFavorites} onPlaceSelect={onPlaceSelect} itineraries={itineraries} mapboxToken={mapboxToken} settings={settings} />
       <TripsPanel    isVisible={tripsOpen}     isClosing={closingPanel === 'trips'}     onClose={onCloseAll} itineraries={itineraries} setItineraries={setItineraries} settings={settings} />
       <OrganizePanel isVisible={organizeOpen}  isClosing={closingPanel === 'organize'}  onClose={onCloseAll} itineraries={itineraries} onOpenPlanner={onOpenPlanner} settings={settings} />
       <SettingsPanel isVisible={settingsOpen}  isClosing={closingPanel === 'settings'}  onClose={onCloseAll} settings={settings} onSettingsChange={onSettingsChange} mapboxToken={mapboxToken} />

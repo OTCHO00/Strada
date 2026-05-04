@@ -1,5 +1,5 @@
 import { useT } from './translations.js';
-import { hexToRgba, isDarkColor, GRAIN_SVG } from './theme.js';
+import { hexToRgba, GRAIN_SVG, getTheme } from './theme.js';
 
 // ── Nav items (icon + mode, label resolved via tr()) ──────────────────
 const navItems = [
@@ -26,14 +26,10 @@ function Sidebar({ activeTab, onNavigate, settings = {}, plannerOpen = false }) 
   const { sidebarColor: color = '#dfe2ef', sidebarGrain: grain = 0.06, language = 'fr' } = settings;
   const tr = useT(language);
 
-  const dark  = isDarkColor(color);
-  const textPrimary   = dark ? 'rgba(255,255,255,0.90)' : '#1c1c1e';
-  const textSecondary = dark ? 'rgba(255,255,255,0.45)' : '#6c6c70';
-  const dividerColor  = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-  const activeStyle   = dark
-    ? { background: 'rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.95)', boxShadow: 'none' }
-    : { background: '#1c1c1e', color: '#ffffff', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' };
-  const hoverBg = dark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.65)';
+  const t = getTheme(color);
+  const { dark, textPrimary, textSecondary, divider: dividerColor } = t;
+  const activeStyle = { background: t.activeNavBg, color: t.activeNavColor, boxShadow: dark ? 'none' : '0 2px 8px rgba(0,0,0,0.2)' };
+  const hoverBg = t.hoverBg;
 
   return (
     <div
@@ -98,7 +94,7 @@ function Sidebar({ activeTab, onNavigate, settings = {}, plannerOpen = false }) 
               >
                 {item.icon}
                 <span className="text-[13px] font-medium">{label}</span>
-                {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: dark ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.5)' }} />}
+                {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'white' }} />}
               </button>
             );
           })}
@@ -124,7 +120,7 @@ function Sidebar({ activeTab, onNavigate, settings = {}, plannerOpen = false }) 
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                 </svg>
                 <span className="text-[13px] font-medium">{tr('appearance')}</span>
-                {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: dark ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.5)' }} />}
+                {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'white' }} />}
               </button>
             );
           })()}

@@ -2,7 +2,8 @@ const T = {
   fr: {
     // Navigation
     search: 'Recherche', favorites: 'Favoris', trips: 'Voyages',
-    organize: 'Organisation', appearance: 'Apparence', settings: 'Paramètres',
+    favoritesTitle: 'Vos Favoris', tripsTitle: 'Mes Voyages',
+    organize: 'Planning', appearance: 'Paramètres', settings: 'Paramètres', appearanceSection: 'Apparence',
     // Search panel
     searchSub: 'Trouvez un lieu sur la carte',
     searchPlaceholder: 'Ville, monument, adresse…',
@@ -10,7 +11,7 @@ const T = {
     searchNoResult: 'Aucun résultat pour',
     // Favorites
     favoritesNone: 'Aucun favori', favoritesEmptySub: 'Cliquez sur un lieu puis "Favori"',
-    seeOnMap: 'Voir sur la carte', favorited: 'Sauvegardé', addFavorite: 'Favori',
+    seeOnMap: 'Voir sur la carte', favorited: 'Sauvegardé', addFavorite: 'Favori', addToTrip: 'Ajouter',
     favori: 'favori enregistré', favoris: 'favoris enregistrés',
     // Trips
     tripsNone: 'Aucun voyage', tripsEmptySub: 'Créez votre premier itinéraire',
@@ -42,7 +43,8 @@ const T = {
   en: {
     // Navigation
     search: 'Search', favorites: 'Favorites', trips: 'Trips',
-    organize: 'Schedule', appearance: 'Appearance', settings: 'Settings',
+    favoritesTitle: 'Your Favorites', tripsTitle: 'My Trips',
+    organize: 'Planning', appearance: 'Settings', settings: 'Settings', appearanceSection: 'Appearance',
     // Search panel
     searchSub: 'Find a place on the map',
     searchPlaceholder: 'City, landmark, address…',
@@ -50,7 +52,7 @@ const T = {
     searchNoResult: 'No results for',
     // Favorites
     favoritesNone: 'No favorites', favoritesEmptySub: 'Click on a place then tap "Favorite"',
-    seeOnMap: 'See on map', favorited: 'Saved', addFavorite: 'Favorite',
+    seeOnMap: 'See on map', favorited: 'Saved', addFavorite: 'Favorite', addToTrip: 'Add',
     favori: 'saved favorite', favoris: 'saved favorites',
     // Trips
     tripsNone: 'No trips', tripsEmptySub: 'Create your first itinerary',
