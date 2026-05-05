@@ -484,9 +484,10 @@ function TripsPanel({ isVisible, isClosing, onClose, itineraries, setItineraries
           {!showForm && (
             <button
               onClick={() => setShowForm(true)}
-              className="btn-press flex items-center gap-1.5 px-3 py-1.5 bg-[#1c1c1e] text-white text-xs font-medium rounded-lg hover:bg-[#3a3a3c] transition-colors cursor-default focus:outline-none"
+              className="btn-press flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg cursor-default focus:outline-none"
+              style={{ background: t.inputBg, color: t.textSecondary, transition: 'transform 160ms cubic-bezier(0.16,1,0.3,1), opacity 160ms ease-out' }}
             >
-              <Plus style={{ width: 12, height: 12 }} />
+              <Plus style={{ width: 11, height: 11 }} />
               {tr('new')}
             </button>
           )}
